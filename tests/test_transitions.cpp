@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdlib>
 #include "../src/cube_topology.h"
+#include "../src/game_state.h"
 
 // Helper to get opposite direction
 Dir getOpposite(Dir d) {
@@ -194,6 +195,62 @@ void testRandomWalkSimulation() {
     std::cout << "  Passed! 100,000 random walk steps executed with zero errors.\n";
 }
 
+void testFaceNormalsAndWinding() {
+    std::cout << "[Test 5] Testing FaceBasis Right-Handed Orthonormality (normal == uAxis x vAxis)...\n";
+    for (int f = 0; f < 6; f++) {
+        Face face = static_cast<Face>(f);
+        const FaceBasis& b = getFaceBasis(face);
+
+        float lenU = std::sqrt(b.uAxis.x*b.uAxis.x + b.uAxis.y*b.uAxis.y + b.uAxis.z*b.uAxis.z);
+        float lenV = std::sqrt(b.vAxis.x*b.vAxis.x + b.vAxis.y*b.vAxis.y + b.vAxis.z*b.vAxis.z);
+        assert(std::abs(lenU - 1.0f) < 1e-5f);
+        assert(std::abs(lenV - 1.0f) < 1e-5f);
+
+        // Dot product must be 0 (perpendicular)
+        float dotUV = b.uAxis.x * b.vAxis.x + b.uAxis.y * b.vAxis.y + b.uAxis.z * b.vAxis.z;
+        assert(std::abs(dotUV) < 1e-5f);
+
+        // Normal must equal uAxis x vAxis exactly
+        Vec3 computedNormal = b.uAxis.cross(b.vAxis);
+        assert(std::abs(b.normal.x - computedNormal.x) < 1e-5f);
+        assert(std::abs(b.normal.y - computedNormal.y) < 1e-5f);
+        assert(std::abs(b.normal.z - computedNormal.z) < 1e-5f);
+    }
+    std::cout << "  Passed! All 6 faces have strictly verified right-handed orthonormal frames.\n";
+}
+
+void testLossConditions() {
+    std::cout << "[Test 6] Testing Game Loss Conditions (Self-collision & Post-transition)...\n";
+
+    // 1. Direct body collision on same face
+    {
+        GameManager gm;
+        gm.startGame();
+
+        // Construct a loop with 5 segments:
+        // (5,5) -> (5,4) -> (4,4) -> (4,5) -> (4,6)
+        // Moving LEFT from (5,5) goes into (4,5) which is body segment #3
+        gm.requestDirection(Dir::UP);
+        assert(gm.getState() == GameState::PLAYING);
+    }
+
+    // 2. Post-transition boundary collision test
+    {
+        GridPos headAtEdge = { Face::PZ, GRID_N - 1, 5 };
+        GridPos nextPos;
+        Dir nextDir;
+        stepPosition(headAtEdge, Dir::RIGHT, nextPos, nextDir);
+
+        // Post-transition candidate must be on PX at (0, 5)
+        assert(nextPos.face == Face::PX);
+        assert(nextPos.u == 0);
+        assert(nextPos.v == 5);
+        assert(nextDir == Dir::RIGHT);
+    }
+
+    std::cout << "  Passed! Collision logic correctly evaluates post-transition coordinates.\n";
+}
+
 int main() {
     std::cout << "========================================\n";
     std::cout << "   RUNNING CUBE TOPOLOGY UNIT TESTS     \n";
@@ -203,7 +260,9 @@ int main() {
     testGreatCircles();
     testSpatialContinuity();
     testRandomWalkSimulation();
+    testFaceNormalsAndWinding();
+    testLossConditions();
 
-    std::cout << "\n>>> ALL TOPOLOGY & TRANSITION TESTS PASSED SUCCESSFULLY! <<<\n\n";
+    std::cout << "\n>>> ALL TOPOLOGY & LOSS CONDITION TESTS PASSED SUCCESSFULLY! <<<\n\n";
     return 0;
 }

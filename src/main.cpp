@@ -74,17 +74,26 @@ static void onRenderTimer(int val) {
     glutTimerFunc(16, onRenderTimer, 0);
 }
 
+static bool g_tickTimerRunning = false;
+
+static void scheduleGameTick() {
+    if (!g_tickTimerRunning && g_game.getState() == GameState::PLAYING) {
+        g_tickTimerRunning = true;
+        glutTimerFunc(g_game.getTickIntervalMs(), onGameTickTimer, 0);
+    }
+}
+
 static void onGameTickTimer(int val) {
+    g_tickTimerRunning = false;
     if (g_game.getState() == GameState::PLAYING) {
         bool moved = g_game.tick();
         if (moved) {
             // Keep camera locked onto active face where snake's head is
             g_camera.setTargetFace(g_game.getActiveFace());
+            scheduleGameTick();
         }
+        // If not moved (Game Over), timer stops naturally here
     }
-
-    // Reschedule tick based on current dynamic game speed
-    glutTimerFunc(g_game.getTickIntervalMs(), onGameTickTimer, 0);
 }
 
 static void handleDirInput(Dir d) {
@@ -106,8 +115,12 @@ static void onKeyboard(unsigned char key, int x, int y) {
             if (state == GameState::MENU) {
                 g_game.startGame();
                 g_camera.setTargetFace(g_game.getActiveFace());
-            } else if (state == GameState::PLAYING || state == GameState::PAUSED) {
+                scheduleGameTick();
+            } else if (state == GameState::PLAYING) {
                 g_game.togglePause();
+            } else if (state == GameState::PAUSED) {
+                g_game.togglePause();
+                scheduleGameTick();
             }
             break;
 
@@ -134,12 +147,16 @@ static void onKeyboard(unsigned char key, int x, int y) {
         case 'p':
         case 'P':
             g_game.togglePause();
+            if (g_game.getState() == GameState::PLAYING) {
+                scheduleGameTick();
+            }
             break;
 
         case 'r':
         case 'R':
             g_game.reset();
             g_camera.setTargetFace(g_game.getActiveFace());
+            scheduleGameTick();
             break;
 
         case 'm':
@@ -148,6 +165,14 @@ static void onKeyboard(unsigned char key, int x, int y) {
                 g_game.setState(GameState::MENU);
             }
             break;
+
+        // Quick camera inspection keys (1-6) to verify all 6 faces
+        case '1': g_camera.setTargetFace(Face::PX); break;
+        case '2': g_camera.setTargetFace(Face::NX); break;
+        case '3': g_camera.setTargetFace(Face::PY); break;
+        case '4': g_camera.setTargetFace(Face::NY); break;
+        case '5': g_camera.setTargetFace(Face::PZ); break;
+        case '6': g_camera.setTargetFace(Face::NZ); break;
     }
 }
 
