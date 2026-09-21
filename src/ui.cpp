@@ -1,11 +1,11 @@
 #include "ui.h"
+#include "palette.h"
 #include <GL/freeglut.h>
 #include <cmath>
 #include <cstdio>
 #include <cctype>
 
 // 5x7 bitmap font definitions (each row has 5 bits, MSB is column 0)
-// Bit pattern: bit 4 is col 0, bit 3 is col 1, bit 2 is col 2, bit 1 is col 3, bit 0 is col 4
 static const unsigned char FONT_5X7[][7] = {
     // Space (32)
     { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
@@ -161,7 +161,6 @@ float RetroArcadeUI::getTextWidth(const char* str, float pixelSize) {
     if (!str) return 0.0f;
     int len = 0;
     for (const char* c = str; *c != '\0'; c++) len++;
-    // Each char is 5 pixels wide + 1 pixel spacing = 6 * pixelSize
     return static_cast<float>(len * 6) * pixelSize;
 }
 
@@ -175,38 +174,11 @@ void RetroArcadeUI::drawText(const char* str, float x, float y, float pixelSize,
         x = (windowWidth - w) * 0.5f;
     }
 
-    // Optional subtle drop shadow for arcade depth
-    glColor3f(r * 0.2f, g * 0.2f, b * 0.2f);
-    glBegin(GL_QUADS);
-    float curX = x + pixelSize;
-    float curY = y + pixelSize;
-    for (const char* p = str; *p != '\0'; p++) {
-        char ch = std::toupper(*p);
-        if (ch >= 32 && ch <= 93) {
-            const unsigned char* glyph = FONT_5X7[ch - 32];
-            for (int row = 0; row < 7; row++) {
-                unsigned char rowBits = glyph[row];
-                for (int col = 0; col < 5; col++) {
-                    if (rowBits & (1 << (4 - col))) {
-                        float px = curX + col * pixelSize;
-                        float py = curY + row * pixelSize;
-                        glVertex2f(px, py);
-                        glVertex2f(px + pixelSize, py);
-                        glVertex2f(px + pixelSize, py + pixelSize);
-                        glVertex2f(px, py + pixelSize);
-                    }
-                }
-            }
-        }
-        curX += 6.0f * pixelSize;
-    }
-    glEnd();
-
-    // Main neon pixel glyphs
+    // Flat saturated pixel quads - no anti-aliased or muddy blending
     glColor3f(r, g, b);
     glBegin(GL_QUADS);
-    curX = x;
-    curY = y;
+    float curX = x;
+    float curY = y;
     for (const char* p = str; *p != '\0'; p++) {
         char ch = std::toupper(*p);
         if (ch >= 32 && ch <= 93) {
@@ -234,8 +206,8 @@ void RetroArcadeUI::renderScanlines(int width, int height) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Subtle dark CRT scanlines every 3 pixels
-    glColor4f(0.0f, 0.0f, 0.0f, 0.26f);
+    // Black scanlines at ~25% alpha (#000000 @ 0.25 alpha)
+    glColor4f(Palette::Black.r, Palette::Black.g, Palette::Black.b, Palette::ScanlineAlpha);
     glLineWidth(1.0f);
     glBegin(GL_LINES);
     for (int y = 0; y < height; y += 3) {
@@ -248,16 +220,12 @@ void RetroArcadeUI::renderScanlines(int width, int height) {
 }
 
 void RetroArcadeUI::renderCRTBezel(int width, int height) {
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // Cabinet border bezel
+    // Cabinet outer border in pure black (#000000)
     float w = static_cast<float>(width);
     float h = static_cast<float>(height);
     float border = 8.0f;
 
-    // Dark outer frame
-    glColor4f(0.02f, 0.03f, 0.05f, 0.95f);
+    glColor3f(Palette::Black.r, Palette::Black.g, Palette::Black.b);
     glBegin(GL_QUADS);
     // Top
     glVertex2f(0, 0); glVertex2f(w, 0); glVertex2f(w, border); glVertex2f(0, border);
@@ -269,17 +237,15 @@ void RetroArcadeUI::renderCRTBezel(int width, int height) {
     glVertex2f(w - border, 0); glVertex2f(w, 0); glVertex2f(w, h); glVertex2f(w - border, h);
     glEnd();
 
-    // Neon accent outline around the screen
-    glColor4f(0.15f, 0.35f, 0.45f, 0.5f);
-    glLineWidth(2.0f);
+    // Dim green bezel outline (#115511)
+    glColor3f(Palette::DimGreen.r, Palette::DimGreen.g, Palette::DimGreen.b);
+    glLineWidth(1.5f);
     glBegin(GL_LINE_LOOP);
     glVertex2f(border, border);
     glVertex2f(w - border, border);
     glVertex2f(w - border, h - border);
     glVertex2f(border, h - border);
     glEnd();
-
-    glDisable(GL_BLEND);
 }
 
 void RetroArcadeUI::renderScreenFlash(int width, int height) {
@@ -288,8 +254,8 @@ void RetroArcadeUI::renderScreenFlash(int width, int height) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    float alpha = (m_flashTimer / 0.45f) * 0.55f;
-    glColor4f(1.0f, 0.1f, 0.15f, alpha);
+    float alpha = (m_flashTimer / 0.45f) * 0.5f;
+    glColor4f(Palette::Red.r, Palette::Red.g, Palette::Red.b, alpha);
 
     glBegin(GL_QUADS);
     glVertex2f(0.0f, 0.0f);
@@ -302,64 +268,59 @@ void RetroArcadeUI::renderScreenFlash(int width, int height) {
 }
 
 void RetroArcadeUI::renderMenu(const GameManager& game, int width, int height, float animTime) {
-    // 1. Semi-translucent dark vignette so the rotating cube is subtly visible
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f(0.02f, 0.03f, 0.05f, 0.65f);
-    glBegin(GL_QUADS);
-    glVertex2f(0, 0);
-    glVertex2f(static_cast<float>(width), 0);
-    glVertex2f(static_cast<float>(width), static_cast<float>(height));
-    glVertex2f(0, static_cast<float>(height));
-    glEnd();
-    glDisable(GL_BLEND);
+    // Solid flat black start screen per spec - no 3D scene, pure 80s arcade feel
 
-    // 2. Large Retro Arcade Title
-    drawText("SNAKE ON A CUBE", 0, height * 0.18f, 5.0f, 0.2f, 1.0f, 0.4f, true, width); // Neon Green
+    // 1. Title: Neon Green (#33FF33)
+    drawText("SNAKE ON A CUBE", 0, height * 0.22f, 5.0f,
+             Palette::NeonGreen.r, Palette::NeonGreen.g, Palette::NeonGreen.b, true, width);
 
-    // 3. Subtitle / Version tag
-    drawText("* 3D RETRO EDITION *", 0, height * 0.28f, 2.5f, 1.0f, 0.75f, 0.1f, true, width); // Amber
-
-    // 4. High Score display
+    // 2. High score line: Amber (#FFB000)
     char highBuf[64];
     std::snprintf(highBuf, sizeof(highBuf), "HIGH SCORE  %05d", game.getHighScore());
-    drawText(highBuf, 0, height * 0.40f, 3.0f, 0.2f, 0.9f, 1.0f, true, width); // Cyan
+    drawText(highBuf, 0, height * 0.42f, 3.0f,
+             Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
 
-    // 5. Blinking "PRESS SPACE TO START" (500ms cycle)
+    // 3. Blinking prompt: Amber (#FFB000) (500ms toggle)
     bool blinkOn = static_cast<int>(m_blinkTimer * 2.0f) % 2 == 0;
     if (blinkOn) {
-        drawText("PRESS SPACE TO START", 0, height * 0.65f, 3.2f, 1.0f, 0.85f, 0.2f, true, width);
+        drawText("PRESS SPACE TO START", 0, height * 0.62f, 3.2f,
+                 Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
     }
 
-    // 6. Controls footer
-    drawText("[WASD / ARROWS] MOVE   [P] PAUSE   [1-6] VIEW FACES", 0, height * 0.88f, 2.0f, 0.5f, 0.65f, 0.8f, true, width);
+    // 4. Controls footer: Amber (#FFB000)
+    drawText("[ARROW KEYS / WASD] MOVE", 0, height * 0.84f, 2.0f,
+             Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
 }
 
 void RetroArcadeUI::renderPlayingHUD(const GameManager& game, int width, int height) {
     char buf[64];
 
-    // Top-Left: Neon Green Score
-    std::snprintf(buf, sizeof(buf), "SCORE  %05d", game.getScore());
-    drawText(buf, 24, 20, 2.4f, 0.2f, 1.0f, 0.4f);
+    // Score HUD: Amber (#FFB000)
+    std::snprintf(buf, sizeof(buf), "SCORE %05d", game.getScore());
+    drawText(buf, 24, 20, 2.4f,
+             Palette::Amber.r, Palette::Amber.g, Palette::Amber.b);
 
-    // Top-Center: Amber High Score
-    std::snprintf(buf, sizeof(buf), "HIGH  %05d", game.getHighScore());
-    drawText(buf, 0, 20, 2.4f, 1.0f, 0.75f, 0.1f, true, width);
+    // High Score: Amber (#FFB000)
+    std::snprintf(buf, sizeof(buf), "HIGH %05d", game.getHighScore());
+    drawText(buf, 0, 20, 2.4f,
+             Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
 
-    // Top-Right: Cyan Face and Speed
+    // Active Face: Bright Cyan (#33FFFF)
     std::snprintf(buf, sizeof(buf), "FACE %s", faceToString(game.getActiveFace()));
     float faceW = getTextWidth(buf, 2.4f);
-    drawText(buf, width - faceW - 24, 20, 2.4f, 0.2f, 0.9f, 1.0f);
+    drawText(buf, width - faceW - 24, 20, 2.4f,
+             Palette::Cyan.r, Palette::Cyan.g, Palette::Cyan.b);
 
-    // Subtle bottom hints
-    drawText("[WASD] TURN   [P] PAUSE", 24, height - 28, 1.8f, 0.4f, 0.55f, 0.7f);
+    // Controls reminder at bottom: Amber (#FFB000)
+    drawText("[P] PAUSE", 24, height - 28, 1.8f,
+             Palette::Amber.r, Palette::Amber.g, Palette::Amber.b);
 }
 
 void RetroArcadeUI::renderPaused(int width, int height, float animTime) {
-    // Translucent dark backdrop
+    // Translucent black backdrop over the paused 3D scene
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f(0.01f, 0.02f, 0.04f, 0.75f);
+    glColor4f(Palette::Black.r, Palette::Black.g, Palette::Black.b, 0.85f);
     glBegin(GL_QUADS);
     glVertex2f(0, 0);
     glVertex2f(static_cast<float>(width), 0);
@@ -368,68 +329,65 @@ void RetroArcadeUI::renderPaused(int width, int height, float animTime) {
     glEnd();
     glDisable(GL_BLEND);
 
-    // Big PAUSED text
-    drawText("PAUSED", 0, height * 0.40f, 5.5f, 1.0f, 0.75f, 0.1f, true, width); // Amber
+    // PAUSED: Amber (#FFB000)
+    drawText("PAUSED", 0, height * 0.40f, 5.5f,
+             Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
 
-    // Blinking prompt
+    // Blinking prompt: Amber (#FFB000)
     bool blinkOn = static_cast<int>(m_blinkTimer * 2.0f) % 2 == 0;
     if (blinkOn) {
-        drawText("PRESS P TO RESUME", 0, height * 0.54f, 2.8f, 0.2f, 0.9f, 1.0f, true, width); // Cyan
+        drawText("PRESS P TO RESUME", 0, height * 0.54f, 2.8f,
+                 Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
     }
 }
 
 void RetroArcadeUI::renderGameOver(const GameManager& game, int width, int height, float animTime) {
-    // Reddish translucent overlay
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f(0.08f, 0.01f, 0.02f, 0.82f);
-    glBegin(GL_QUADS);
-    glVertex2f(0, 0);
-    glVertex2f(static_cast<float>(width), 0);
-    glVertex2f(static_cast<float>(width), static_cast<float>(height));
-    glVertex2f(0, static_cast<float>(height));
-    glEnd();
-    glDisable(GL_BLEND);
+    // Solid flat black background per spec - no 3D scene behind GAME OVER
 
-    // Big Arcade GAME OVER banner
-    drawText("GAME OVER", 0, height * 0.28f, 5.5f, 1.0f, 0.2f, 0.25f, true, width); // Neon Red
+    // 1. GAME OVER: Red (#FF3333)
+    drawText("GAME OVER", 0, height * 0.28f, 5.5f,
+             Palette::Red.r, Palette::Red.g, Palette::Red.b, true, width);
 
-    // Final Score
+    // 2. Final score: Amber (#FFB000)
     char buf[64];
     std::snprintf(buf, sizeof(buf), "FINAL SCORE  %05d", game.getScore());
-    drawText(buf, 0, height * 0.44f, 3.2f, 1.0f, 0.85f, 0.2f, true, width); // Amber
+    drawText(buf, 0, height * 0.46f, 3.2f,
+             Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
 
-    // If new high score
+    // 3. New High Score alert: Neon Green (#33FF33)
     if (game.getScore() > 0 && game.getScore() >= game.getHighScore()) {
         bool flash = static_cast<int>(m_blinkTimer * 4.0f) % 2 == 0;
         if (flash) {
-            drawText("** NEW HIGH SCORE **", 0, height * 0.54f, 2.6f, 0.2f, 1.0f, 0.4f, true, width);
+            drawText("** NEW HIGH SCORE **", 0, height * 0.56f, 2.6f,
+                     Palette::NeonGreen.r, Palette::NeonGreen.g, Palette::NeonGreen.b, true, width);
         }
     }
 
-    // Instructions
+    // 4. Prompt to return to MENU: Amber (#FFB000)
     bool blink = static_cast<int>(m_blinkTimer * 2.0f) % 2 == 0;
     if (blink) {
-        drawText("PRESS SPACE FOR MENU", 0, height * 0.66f, 3.0f, 0.2f, 0.9f, 1.0f, true, width);
+        drawText("PRESS SPACE FOR MENU", 0, height * 0.68f, 3.0f,
+                 Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
     }
-    drawText("PRESS R TO RESTART IMMEDIATELY", 0, height * 0.76f, 2.0f, 0.6f, 0.7f, 0.8f, true, width);
+
+    // 5. Quick restart option: Amber (#FFB000)
+    drawText("PRESS R TO RESTART", 0, height * 0.80f, 2.0f,
+             Palette::Amber.r, Palette::Amber.g, Palette::Amber.b, true, width);
 }
 
 void RetroArcadeUI::render(const GameManager& game, int windowWidth, int windowHeight, float animTime) {
     glDisable(GL_LIGHTING);
     glDisable(GL_DEPTH_TEST);
 
-    // Set 2D orthographic projection matching screen pixels
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
-    gluOrtho2D(0, windowWidth, windowHeight, 0); // (0, 0) at top-left
+    gluOrtho2D(0, windowWidth, windowHeight, 0);
 
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
 
-    // Render state-specific screen
     GameState state = game.getState();
     switch (state) {
         case GameState::MENU:
@@ -443,26 +401,23 @@ void RetroArcadeUI::render(const GameManager& game, int windowWidth, int windowH
             renderPaused(windowWidth, windowHeight, animTime);
             break;
         case GameState::GAME_OVER:
-            renderPlayingHUD(game, windowWidth, windowHeight);
             renderGameOver(game, windowWidth, windowHeight, animTime);
             break;
     }
 
-    // Screen flash overlay on loss impact
+    // Impact flash
     renderScreenFlash(windowWidth, windowHeight);
 
-    // CRT scanlines overlay
+    // CRT scanlines (#000000 @ 0.25 alpha)
     renderScanlines(windowWidth, windowHeight);
 
-    // CRT arcade cabinet bezel frame
+    // CRT arcade cabinet bezel
     renderCRTBezel(windowWidth, windowHeight);
 
-    // Restore matrices and state
     glPopMatrix();
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_LIGHTING);
 }

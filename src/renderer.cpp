@@ -1,8 +1,8 @@
 #include "renderer.h"
+#include "palette.h"
 #include <GL/freeglut.h>
 #include <cmath>
 #include <cstdio>
-#include <string>
 
 Renderer::Renderer() {}
 
@@ -10,49 +10,19 @@ void Renderer::initGL() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
 
+    // Flat retro arcade shading: disable 3D lighting so exact palette colors render true
+    glDisable(GL_LIGHTING);
+    glShadeModel(GL_FLAT);
 
-    glShadeModel(GL_SMOOTH);
-    glEnable(GL_COLOR_MATERIAL);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-
-    
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-    glEnable(GL_LIGHT1);
-
-    GLfloat light0_pos[] = { 10.0f, 15.0f, 12.0f, 1.0f };
-    GLfloat light0_diff[] = { 0.9f, 0.9f, 0.9f, 1.0f };
-    GLfloat light0_amb[]  = { 0.25f, 0.25f, 0.3f, 1.0f };
-    glLightfv(GL_LIGHT0, GL_POSITION, light0_pos);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE,  light0_diff);
-    glLightfv(GL_LIGHT0, GL_AMBIENT,  light0_amb);
-
-    GLfloat light1_pos[] = { -12.0f, -10.0f, -10.0f, 1.0f };
-    GLfloat light1_diff[] = { 0.4f, 0.4f, 0.5f, 1.0f };
-    glLightfv(GL_LIGHT1, GL_POSITION, light1_pos);
-    glLightfv(GL_LIGHT1, GL_DIFFUSE,  light1_diff);
-
-    glEnable(GL_NORMALIZE);
-    glClearColor(0.07f, 0.08f, 0.12f, 1.0f); // Sleek modern dark blue-gray
+    glClearColor(Palette::Black.r, Palette::Black.g, Palette::Black.b, 1.0f);
 }
 
 void Renderer::renderCubeAndGrids() {
-    // 1. Draw solid cube faces with subtle distinct tints
+    // 1. Draw solid black cube faces (#000000)
+    glColor3f(Palette::Black.r, Palette::Black.g, Palette::Black.b);
     glBegin(GL_QUADS);
     for (int f = 0; f < 6; f++) {
         Face face = static_cast<Face>(f);
-        const FaceBasis& b = getFaceBasis(face);
-        glNormal3f(b.normal.x, b.normal.y, b.normal.z);
-
-        // Subtle dark slate tints
-        switch (face) {
-            case Face::PZ: glColor3f(0.12f, 0.14f, 0.20f); break;
-            case Face::PX: glColor3f(0.13f, 0.15f, 0.22f); break;
-            case Face::NZ: glColor3f(0.11f, 0.13f, 0.19f); break;
-            case Face::NX: glColor3f(0.14f, 0.16f, 0.23f); break;
-            case Face::PY: glColor3f(0.15f, 0.17f, 0.25f); break;
-            case Face::NY: glColor3f(0.10f, 0.12f, 0.17f); break;
-        }
 
         Vec3 c0 = cellCornerToWorld(face, 0, 0, 0.0f, 0.0f);
         Vec3 c1 = cellCornerToWorld(face, GRID_N - 1, 0, 1.0f, 0.0f);
@@ -66,10 +36,9 @@ void Renderer::renderCubeAndGrids() {
     }
     glEnd();
 
-    // 2. Draw interior grid lines for each face
-    glDisable(GL_LIGHTING);
+    // 2. Draw interior grid lines for each face in Dim Green (#115511)
     glLineWidth(1.0f);
-    glColor4f(0.24f, 0.30f, 0.42f, 0.8f);
+    glColor3f(Palette::DimGreen.r, Palette::DimGreen.g, Palette::DimGreen.b);
 
     glBegin(GL_LINES);
     for (int f = 0; f < 6; f++) {
@@ -92,12 +61,10 @@ void Renderer::renderCubeAndGrids() {
     }
     glEnd();
 
-    // 3. Draw highlighted outer cube edges
-    glLineWidth(2.5f);
-    glColor3f(0.40f, 0.55f, 0.80f);
+    // 3. Draw outer cube edges in Dim Green (#115511)
+    glLineWidth(2.0f);
+    glColor3f(Palette::DimGreen.r, Palette::DimGreen.g, Palette::DimGreen.b);
     glutWireCube(CUBE_SIZE + 0.005f);
-
-    glEnable(GL_LIGHTING);
 }
 
 void Renderer::renderCellBox(Face face, int u, int v, float scale, float height, float r, float g, float b) {
@@ -120,49 +87,41 @@ void Renderer::renderCellBox(Face face, int u, int v, float scale, float height,
     Vec3 t11 = b11 + nVec;
     Vec3 t01 = b01 + nVec;
 
+    // Flat saturated retro color - no lighting falloff or gradients
     glColor3f(r, g, b);
 
     glBegin(GL_QUADS);
     // Top face
-    glNormal3f(basis.normal.x, basis.normal.y, basis.normal.z);
     glVertex3f(t00.x, t00.y, t00.z);
     glVertex3f(t10.x, t10.y, t10.z);
     glVertex3f(t11.x, t11.y, t11.z);
     glVertex3f(t01.x, t01.y, t01.z);
 
-    // Darken side faces slightly for 3D depth
-    glColor3f(r * 0.75f, g * 0.75f, b * 0.75f);
-
     // Front (along +vAxis)
-    glNormal3f(basis.vAxis.x, basis.vAxis.y, basis.vAxis.z);
     glVertex3f(t01.x, t01.y, t01.z);
     glVertex3f(t11.x, t11.y, t11.z);
     glVertex3f(b11.x, b11.y, b11.z);
     glVertex3f(b01.x, b01.y, b01.z);
 
     // Back (along -vAxis)
-    glNormal3f(-basis.vAxis.x, -basis.vAxis.y, -basis.vAxis.z);
     glVertex3f(t00.x, t00.y, t00.z);
     glVertex3f(b00.x, b00.y, b00.z);
     glVertex3f(b10.x, b10.y, b10.z);
     glVertex3f(t10.x, t10.y, t10.z);
 
     // Right (along +uAxis)
-    glNormal3f(basis.uAxis.x, basis.uAxis.y, basis.uAxis.z);
     glVertex3f(t10.x, t10.y, t10.z);
     glVertex3f(b10.x, b10.y, b10.z);
     glVertex3f(b11.x, b11.y, b11.z);
     glVertex3f(t11.x, t11.y, t11.z);
 
     // Left (along -uAxis)
-    glNormal3f(-basis.uAxis.x, -basis.uAxis.y, -basis.uAxis.z);
     glVertex3f(t00.x, t00.y, t00.z);
     glVertex3f(t01.x, t01.y, t01.z);
     glVertex3f(b01.x, b01.y, b01.z);
     glVertex3f(b00.x, b00.y, b00.z);
 
     // Bottom (along -normal)
-    glNormal3f(-basis.normal.x, -basis.normal.y, -basis.normal.z);
     glVertex3f(b00.x, b00.y, b00.z);
     glVertex3f(b01.x, b01.y, b01.z);
     glVertex3f(b11.x, b11.y, b11.z);
@@ -175,29 +134,23 @@ void Renderer::renderSnake(const Snake& snake, float animTime) {
 
     size_t bodyLen = snake.body.size();
 
-    // 1. Draw body segments
+    // 1. Draw body segments: Flat Neon Green (#33CC33) across all segments per retro palette
     for (size_t i = 1; i < bodyLen; i++) {
-        float progress = static_cast<float>(i) / static_cast<float>(bodyLen);
-        // Gradient from vibrant emerald to deeper forest jade
-        float r = 0.12f + progress * 0.05f;
-        float g = 0.85f - progress * 0.35f;
-        float b = 0.45f - progress * 0.20f;
-
-        float scale = 0.88f - (progress * 0.18f); // slight taper toward tail
-        float height = 0.22f - (progress * 0.06f);
-
-        renderCellBox(snake.body[i].face, snake.body[i].u, snake.body[i].v, scale, height, r, g, b);
+        renderCellBox(snake.body[i].face, snake.body[i].u, snake.body[i].v,
+                      0.85f, 0.22f,
+                      Palette::BodyGreen.r, Palette::BodyGreen.g, Palette::BodyGreen.b);
     }
 
-    // 2. Draw snake head (larger, glowing cyan-emerald)
+    // 2. Draw snake head: Flat Bright Cyan (#33FFFF)
     const GridPos& head = snake.body.front();
-    renderCellBox(head.face, head.u, head.v, 0.92f, 0.28f, 0.15f, 0.95f, 0.70f);
+    renderCellBox(head.face, head.u, head.v,
+                  0.90f, 0.28f,
+                  Palette::Cyan.r, Palette::Cyan.g, Palette::Cyan.b);
 
-    // 3. Draw cute eyes on the snake head
+    // 3. Directional eyes on snake head
     const FaceBasis& basis = getFaceBasis(head.face);
     Vec3 center = localToWorld(head.face, head.u, head.v, 0.29f);
 
-    // Determine forward direction along face
     Vec3 fwd(0, 0, 0);
     switch (snake.currentDir) {
         case Dir::UP:    fwd = basis.vAxis; break;
@@ -205,18 +158,17 @@ void Renderer::renderSnake(const Snake& snake, float animTime) {
         case Dir::LEFT:  fwd = basis.uAxis * -1.0f; break;
         case Dir::RIGHT: fwd = basis.uAxis; break;
     }
-    // Mathematically guaranteed right-hand vector on ANY face
     Vec3 side = fwd.cross(basis.normal);
 
     float eyeOffsetFwd = CELL_SIZE * 0.22f;
-    float eyeOffsetSide = CELL_SIZE * 0.25f;
-    float eyeRadius = CELL_SIZE * 0.085f;
+    float eyeOffsetSide = CELL_SIZE * 0.24f;
+    float eyeRadius = CELL_SIZE * 0.08f;
 
     Vec3 eyeL = center + (fwd * eyeOffsetFwd) - (side * eyeOffsetSide);
     Vec3 eyeR = center + (fwd * eyeOffsetFwd) + (side * eyeOffsetSide);
 
-    // Draw eye whites
-    glColor3f(1.0f, 1.0f, 1.0f);
+    // Black pupils on cyan head (#000000)
+    glColor3f(Palette::Black.r, Palette::Black.g, Palette::Black.b);
     glPushMatrix();
     glTranslatef(eyeL.x, eyeL.y, eyeL.z);
     glutSolidSphere(eyeRadius, 8, 8);
@@ -226,27 +178,11 @@ void Renderer::renderSnake(const Snake& snake, float animTime) {
     glTranslatef(eyeR.x, eyeR.y, eyeR.z);
     glutSolidSphere(eyeRadius, 8, 8);
     glPopMatrix();
-
-    // Draw pupils
-    glColor3f(0.05f, 0.05f, 0.1f);
-    Vec3 pupilL = eyeL + (fwd * (eyeRadius * 0.5f));
-    Vec3 pupilR = eyeR + (fwd * (eyeRadius * 0.5f));
-
-    glPushMatrix();
-    glTranslatef(pupilL.x, pupilL.y, pupilL.z);
-    glutSolidSphere(eyeRadius * 0.55f, 6, 6);
-    glPopMatrix();
-
-    glPushMatrix();
-    glTranslatef(pupilR.x, pupilR.y, pupilR.z);
-    glutSolidSphere(eyeRadius * 0.55f, 6, 6);
-    glPopMatrix();
 }
 
 void Renderer::renderFood(const GridPos& food, float animTime) {
     const FaceBasis& basis = getFaceBasis(food.face);
 
-    // Floating bobbing motion
     float bob = 0.25f + 0.08f * std::sin(animTime * 5.0f);
     Vec3 center = localToWorld(food.face, food.u, food.v, bob);
 
@@ -257,22 +193,13 @@ void Renderer::renderFood(const GridPos& food, float animTime) {
     float spinAngle = animTime * 120.0f;
     glRotatef(spinAngle, basis.normal.x, basis.normal.y, basis.normal.z);
 
-    // Pulsing scale
-    float pulse = 1.0f + 0.12f * std::sin(animTime * 8.0f);
-    float foodRadius = (CELL_SIZE * 0.32f) * pulse;
+    float foodRadius = CELL_SIZE * 0.32f;
 
-    // Glowing ruby/amber color
-    glColor3f(1.0f, 0.22f, 0.28f);
-    glutSolidSphere(foodRadius, 14, 14);
+    // Flat Red (#FF3333) per retro palette
+    glColor3f(Palette::Red.r, Palette::Red.g, Palette::Red.b);
+    glutSolidSphere(foodRadius, 10, 10);
 
-    // Golden leaf/stem
-    glColor3f(0.95f, 0.85f, 0.2f);
-    Vec3 stemTop = basis.normal * (foodRadius * 1.2f);
-    glBegin(GL_LINES);
-    glVertex3f(0, 0, 0);
-    glVertex3f(stemTop.x, stemTop.y, stemTop.z);
-    glEnd();
-
+    glPopMatrix();
 }
 
 void Renderer::update(float deltaTime) {
@@ -284,17 +211,30 @@ void Renderer::triggerLossEffects() {
 }
 
 void Renderer::render(const GameManager& game, const OrbitCamera& camera, int windowWidth, int windowHeight, float animTime) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glLoadIdentity();
+    GameState state = game.getState();
 
-    camera.applyView();
+    glClearColor(Palette::Black.r, Palette::Black.g, Palette::Black.b, 1.0f);
 
-    renderCubeAndGrids();
-    renderSnake(game.getSnake(), animTime);
-    renderFood(game.getFood(), animTime);
+    if (state == GameState::MENU || state == GameState::GAME_OVER) {
+        // Section 1: Skip 3D render pass entirely for MENU and GAME_OVER!
+        // Solid black background, 2D arcade overlay only.
+        glClear(GL_COLOR_BUFFER_BIT);
 
-    // Render Retro Arcade 2D UI & CRT Scanline Overlay
-    m_ui.render(game, windowWidth, windowHeight, animTime);
+        m_ui.render(game, windowWidth, windowHeight, animTime);
+    } else {
+        // PLAYING or PAUSED: Render 3D scene + HUD
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glLoadIdentity();
+
+        camera.applyView();
+
+        renderCubeAndGrids();
+        renderSnake(game.getSnake(), animTime);
+        renderFood(game.getFood(), animTime);
+
+        // 2D HUD and CRT scanlines
+        m_ui.render(game, windowWidth, windowHeight, animTime);
+    }
 
     glutSwapBuffers();
 }

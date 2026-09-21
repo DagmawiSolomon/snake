@@ -65,12 +65,9 @@ static void onRenderTimer(int val) {
     // Update retro arcade UI animations (blinking, CRT effects, screen flash)
     g_renderer.update(0.016f);
 
-    // Smoothly orbit camera towards target face
-    g_camera.update(0.016f);
-
-    // In menu, gently rotate camera around the cube as a showcase turntable
-    if (g_game.getState() == GameState::MENU) {
-        g_camera.addManualRotation(0.0f, 0.006f);
+    // Camera updates only when in active 3D gameplay states; idle in MENU and GAME_OVER
+    if (g_game.getState() == GameState::PLAYING || g_game.getState() == GameState::PAUSED) {
+        g_camera.update(0.016f);
     }
 
     glutPostRedisplay();
