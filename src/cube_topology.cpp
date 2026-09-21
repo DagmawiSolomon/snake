@@ -53,7 +53,17 @@ static const FaceBasis s_faceBases[6] = {
 };
 
 const FaceBasis& getFaceBasis(Face f) {
-    return s_faceBases[static_cast<int>(f)];
+    static bool s_initialized = false;
+    static FaceBasis s_computedBases[6];
+    if (!s_initialized) {
+        for (int i = 0; i < 6; i++) {
+            s_computedBases[i] = s_faceBases[i];
+            // Explicitly enforce normal = uAxis x vAxis so winding and normal can never fall out of sync
+            s_computedBases[i].normal = s_computedBases[i].uAxis.cross(s_computedBases[i].vAxis);
+        }
+        s_initialized = true;
+    }
+    return s_computedBases[static_cast<int>(f)];
 }
 
 Vec3 localToWorld(Face face, int u, int v, float normalOffset) {

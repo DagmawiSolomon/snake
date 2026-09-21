@@ -160,6 +160,13 @@ void Renderer::renderCellBox(Face face, int u, int v, float scale, float height,
     glVertex3f(t01.x, t01.y, t01.z);
     glVertex3f(b01.x, b01.y, b01.z);
     glVertex3f(b00.x, b00.y, b00.z);
+
+    // Bottom (along -normal)
+    glNormal3f(-basis.normal.x, -basis.normal.y, -basis.normal.z);
+    glVertex3f(b00.x, b00.y, b00.z);
+    glVertex3f(b01.x, b01.y, b01.z);
+    glVertex3f(b11.x, b11.y, b11.z);
+    glVertex3f(b10.x, b10.y, b10.z);
     glEnd();
 }
 
@@ -190,15 +197,16 @@ void Renderer::renderSnake(const Snake& snake, float animTime) {
     const FaceBasis& basis = getFaceBasis(head.face);
     Vec3 center = localToWorld(head.face, head.u, head.v, 0.29f);
 
-    // Determine forward and sideways directions based on snake.currentDir
+    // Determine forward direction along face
     Vec3 fwd(0, 0, 0);
-    Vec3 side(0, 0, 0);
     switch (snake.currentDir) {
-        case Dir::UP:    fwd = basis.vAxis; side = basis.uAxis; break;
-        case Dir::DOWN:  fwd = basis.vAxis * -1.0f; side = basis.uAxis; break;
-        case Dir::LEFT:  fwd = basis.uAxis * -1.0f; side = basis.vAxis; break;
-        case Dir::RIGHT: fwd = basis.uAxis; side = basis.vAxis; break;
+        case Dir::UP:    fwd = basis.vAxis; break;
+        case Dir::DOWN:  fwd = basis.vAxis * -1.0f; break;
+        case Dir::LEFT:  fwd = basis.uAxis * -1.0f; break;
+        case Dir::RIGHT: fwd = basis.uAxis; break;
     }
+    // Mathematically guaranteed right-hand vector on ANY face
+    Vec3 side = fwd.cross(basis.normal);
 
     float eyeOffsetFwd = CELL_SIZE * 0.22f;
     float eyeOffsetSide = CELL_SIZE * 0.25f;
