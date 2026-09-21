@@ -62,6 +62,9 @@ static void onReshape(int w, int h) {
 static void onRenderTimer(int val) {
     g_animTime += 0.016f;
 
+    // Update retro arcade UI animations (blinking, CRT effects, screen flash)
+    g_renderer.update(0.016f);
+
     // Smoothly orbit camera towards target face
     g_camera.update(0.016f);
 
@@ -91,8 +94,11 @@ static void onGameTickTimer(int val) {
             // Keep camera locked onto active face where snake's head is
             g_camera.setTargetFace(g_game.getActiveFace());
             scheduleGameTick();
+        } else {
+            // Game Over / Self-collision occurred!
+            // Trigger arcade screen flash & impact feedback
+            g_renderer.triggerLossEffects();
         }
-        // If not moved (Game Over), timer stops naturally here
     }
 }
 
@@ -113,9 +119,13 @@ static void onKeyboard(unsigned char key, int x, int y) {
         case ' ':
         case 13: // ENTER
             if (state == GameState::MENU) {
+                // MENU -> PLAYING
                 g_game.startGame();
                 g_camera.setTargetFace(g_game.getActiveFace());
                 scheduleGameTick();
+            } else if (state == GameState::GAME_OVER) {
+                // GAME_OVER -> MENU (arcade flow)
+                g_game.setState(GameState::MENU);
             } else if (state == GameState::PLAYING) {
                 g_game.togglePause();
             } else if (state == GameState::PAUSED) {
@@ -146,9 +156,11 @@ static void onKeyboard(unsigned char key, int x, int y) {
 
         case 'p':
         case 'P':
-            g_game.togglePause();
-            if (g_game.getState() == GameState::PLAYING) {
-                scheduleGameTick();
+            if (state == GameState::PLAYING || state == GameState::PAUSED) {
+                g_game.togglePause();
+                if (g_game.getState() == GameState::PLAYING) {
+                    scheduleGameTick();
+                }
             }
             break;
 
@@ -161,7 +173,7 @@ static void onKeyboard(unsigned char key, int x, int y) {
 
         case 'm':
         case 'M':
-            if (state == GameState::GAME_OVER) {
+            if (state == GameState::GAME_OVER || state == GameState::PAUSED) {
                 g_game.setState(GameState::MENU);
             }
             break;

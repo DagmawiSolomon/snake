@@ -14,6 +14,7 @@ set(SOURCES
     src/cube_topology.cpp
     src/game_state.cpp
     src/camera.cpp
+    src/ui.cpp
     src/renderer.cpp
 )
 

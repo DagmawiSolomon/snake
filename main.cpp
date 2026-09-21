@@ -4,5 +4,6 @@
 #include "src/cube_topology.cpp"
 #include "src/game_state.cpp"
 #include "src/camera.cpp"
+#include "src/ui.cpp"
 #include "src/renderer.cpp"
 #include "src/main.cpp"

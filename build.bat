@@ -10,6 +10,7 @@ g++ -O2 -std=c++17 ^
     src/cube_topology.cpp ^
     src/game_state.cpp ^
     src/camera.cpp ^
+    src/ui.cpp ^
     src/renderer.cpp ^
     -o main.exe ^
     -lfreeglut -lopengl32 -lglu32
