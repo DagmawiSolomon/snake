@@ -10,12 +10,12 @@ void Renderer::initGL() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
 
-    // Enable smooth shading and basic color material
+
     glShadeModel(GL_SMOOTH);
     glEnable(GL_COLOR_MATERIAL);
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 
-    // Enable lighting
+    
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_LIGHT1);
@@ -273,127 +273,14 @@ void Renderer::renderFood(const GridPos& food, float animTime) {
     glVertex3f(stemTop.x, stemTop.y, stemTop.z);
     glEnd();
 
-    glPopMatrix();
 }
 
-void Renderer::drawText2D(float x, float y, const char* str, void* font, float r, float g, float b) {
-    if (!font) font = GLUT_BITMAP_HELVETICA_18;
-
-    // Draw dark shadow first
-    glColor3f(0.0f, 0.0f, 0.0f);
-    glRasterPos2f(x + 1.5f, y + 1.5f);
-    for (const char* c = str; *c != '\0'; c++) {
-        glutBitmapCharacter(font, *c);
-    }
-
-    // Draw main text
-    glColor3f(r, g, b);
-    glRasterPos2f(x, y);
-    for (const char* c = str; *c != '\0'; c++) {
-        glutBitmapCharacter(font, *c);
-    }
+void Renderer::update(float deltaTime) {
+    m_ui.update(deltaTime);
 }
 
-void Renderer::renderHUD(const GameManager& game, int width, int height) {
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    gluOrtho2D(0, width, height, 0); // Top-left is (0, 0)
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    char buf[128];
-
-    // Top banner: Title & Score
-    std::snprintf(buf, sizeof(buf), "SCORE: %d", game.getScore());
-    drawText2D(25, 35, buf, GLUT_BITMAP_HELVETICA_18, 1.0f, 0.9f, 0.2f);
-
-    std::snprintf(buf, sizeof(buf), "HIGH SCORE: %d", game.getHighScore());
-    drawText2D(25, 60, buf, GLUT_BITMAP_HELVETICA_12, 0.8f, 0.8f, 0.85f);
-
-    std::snprintf(buf, sizeof(buf), "FACE: %s  |  SPEED: %d ms",
-                  faceToString(game.getActiveFace()), game.getTickIntervalMs());
-    drawText2D(25, 82, buf, GLUT_BITMAP_HELVETICA_12, 0.6f, 0.8f, 1.0f);
-
-    // Controls hint (bottom)
-    drawText2D(25, height - 20, "[WASD / ARROWS] Turn   [P] Pause   [R] Restart",
-               GLUT_BITMAP_HELVETICA_12, 0.7f, 0.75f, 0.85f);
-
-    // State overlays
-    GameState state = game.getState();
-    if (state == GameState::MENU) {
-        // Dark translucent overlay panel
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glColor4f(0.05f, 0.06f, 0.10f, 0.82f);
-        glBegin(GL_QUADS);
-        glVertex2f(width * 0.15f, height * 0.22f);
-        glVertex2f(width * 0.85f, height * 0.22f);
-        glVertex2f(width * 0.85f, height * 0.78f);
-        glVertex2f(width * 0.15f, height * 0.78f);
-        glEnd();
-        glDisable(GL_BLEND);
-
-        drawText2D(width * 0.28f, height * 0.35f, "SNAKE ON A CUBE",
-                   GLUT_BITMAP_TIMES_ROMAN_24, 0.2f, 0.95f, 0.65f);
-        drawText2D(width * 0.23f, height * 0.43f, "Guide your snake across the 6 faces of the 3D cube!",
-                   GLUT_BITMAP_HELVETICA_18, 0.9f, 0.9f, 0.95f);
-        drawText2D(width * 0.26f, height * 0.50f, "Edges seamlessly connect all faces - no walls!",
-                   GLUT_BITMAP_HELVETICA_12, 0.65f, 0.85f, 1.0f);
-
-        drawText2D(width * 0.30f, height * 0.62f, "Press SPACE or ENTER to Start",
-                   GLUT_BITMAP_HELVETICA_18, 1.0f, 0.85f, 0.2f);
-    } else if (state == GameState::PAUSED) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glColor4f(0.04f, 0.05f, 0.08f, 0.75f);
-        glBegin(GL_QUADS);
-        glVertex2f(width * 0.25f, height * 0.38f);
-        glVertex2f(width * 0.75f, height * 0.38f);
-        glVertex2f(width * 0.75f, height * 0.62f);
-        glVertex2f(width * 0.25f, height * 0.62f);
-        glEnd();
-        glDisable(GL_BLEND);
-
-        drawText2D(width * 0.42f, height * 0.48f, "PAUSED",
-                   GLUT_BITMAP_TIMES_ROMAN_24, 1.0f, 0.85f, 0.2f);
-        drawText2D(width * 0.35f, height * 0.55f, "Press P to Resume Game",
-                   GLUT_BITMAP_HELVETICA_18, 0.85f, 0.9f, 1.0f);
-    } else if (state == GameState::GAME_OVER) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glColor4f(0.12f, 0.03f, 0.05f, 0.85f);
-        glBegin(GL_QUADS);
-        glVertex2f(width * 0.20f, height * 0.30f);
-        glVertex2f(width * 0.80f, height * 0.30f);
-        glVertex2f(width * 0.80f, height * 0.72f);
-        glVertex2f(width * 0.20f, height * 0.72f);
-        glEnd();
-        glDisable(GL_BLEND);
-
-        drawText2D(width * 0.38f, height * 0.42f, "GAME OVER",
-                   GLUT_BITMAP_TIMES_ROMAN_24, 1.0f, 0.25f, 0.3f);
-
-        std::snprintf(buf, sizeof(buf), "Final Score: %d", game.getScore());
-        drawText2D(width * 0.40f, height * 0.50f, buf,
-                   GLUT_BITMAP_HELVETICA_18, 1.0f, 0.9f, 0.25f);
-
-        drawText2D(width * 0.32f, height * 0.60f, "Press R to Play Again or M for Menu",
-                   GLUT_BITMAP_HELVETICA_18, 0.85f, 0.9f, 1.0f);
-    }
-
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_LIGHTING);
+void Renderer::triggerLossEffects() {
+    m_ui.triggerLossEffects();
 }
 
 void Renderer::render(const GameManager& game, const OrbitCamera& camera, int windowWidth, int windowHeight, float animTime) {
@@ -406,7 +293,8 @@ void Renderer::render(const GameManager& game, const OrbitCamera& camera, int wi
     renderSnake(game.getSnake(), animTime);
     renderFood(game.getFood(), animTime);
 
-    renderHUD(game, windowWidth, windowHeight);
+    // Render Retro Arcade 2D UI & CRT Scanline Overlay
+    m_ui.render(game, windowWidth, windowHeight, animTime);
 
     glutSwapBuffers();
 }
