@@ -70,3 +70,9 @@ Testing/
 
 # Planning artifacts
 implementation_plan.md
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
