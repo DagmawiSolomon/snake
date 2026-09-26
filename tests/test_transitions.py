@@ -140,6 +140,37 @@ class TestCubeTopology(unittest.TestCase):
         self.assertTrue(halved)
         self.assertEqual(len(game.snake.body), 3)
 
+    def test_aggressive_timer_scaling(self):
+        """
+        Tests that food countdown timer window aggressively shrinks as play_time and apples_eaten increase.
+        """
+        game = GameManager()
+        game.start_game()
+
+        # At start: 12.0s
+        t_start = game.compute_current_food_timer_max()
+        self.assertEqual(t_start, 12.0)
+        self.assertEqual(game.aggression_ratio, 0.0)
+
+        # After surviving 40 seconds:
+        game.play_time = 40.0
+        t_40s = game.compute_current_food_timer_max()
+        self.assertLess(t_40s, t_start)
+
+        # After eating 6 apples and surviving 70 seconds:
+        game.play_time = 70.0
+        game.apples_eaten = 6
+        t_mid = game.compute_current_food_timer_max()
+        self.assertLess(t_mid, t_40s)
+
+        # After extreme survival (150s + 15 apples): hits floor cap of 4.0s
+        game.play_time = 150.0
+        game.apples_eaten = 15
+        t_frenzy = game.compute_current_food_timer_max()
+        self.assertEqual(t_frenzy, 4.0)
+        game.food_timer_max = t_frenzy
+        self.assertAlmostEqual(game.aggression_ratio, 1.0, places=2)
+
 if __name__ == '__main__':
     unittest.main()
 

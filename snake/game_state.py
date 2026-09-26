@@ -1,6 +1,6 @@
 """
 Game logic and state management for Snake on a Cube 3D.
-Includes urgency countdown timer and snake size halving penalty.
+Features dynamic aggressive urgency countdown timers and snake size halving penalties.
 """
 
 from collections import deque
@@ -16,7 +16,6 @@ class GameState(Enum):
     GAME_OVER = auto()
     HELP = auto()
 
-
 class Snake:
     def __init__(self):
         self.body: Deque[GridPos] = deque()
@@ -27,7 +26,12 @@ class Snake:
 INITIAL_TICK_MS: int = 160
 MIN_TICK_MS: int = 75
 SPEED_RAMP_MS: int = 3
-DEFAULT_FOOD_TIMER: float = 12.0  # 12 seconds to reach the apple
+
+# Progressive countdown difficulty ramp (scales aggressively the longer you survive)
+INITIAL_FOOD_TIMER: float = 12.0          # Starting generous window (12.0 seconds)
+MIN_FOOD_TIMER: float = 4.0               # Floor cap for extreme arcade frenzy (4.0 seconds)
+FOOD_TIMER_DECAY_PER_APPLE: float = 0.35  # Tighter timer for every apple eaten
+FOOD_TIMER_DECAY_PER_SEC: float = 0.045   # Time decay: -1.0s every ~22 seconds survived!
 
 class GameManager:
     def __init__(self):
@@ -38,15 +42,41 @@ class GameManager:
         self.high_score: int = 0
         self.tick_interval_ms: int = INITIAL_TICK_MS
 
-        # Urgency timer mechanics
-        self.food_timer_max: float = DEFAULT_FOOD_TIMER
-        self.food_timer: float = DEFAULT_FOOD_TIMER
+        # Dynamic urgency timer mechanics
+        self.apples_eaten: int = 0
+        self.play_time: float = 0.0
+        self.food_timer_max: float = INITIAL_FOOD_TIMER
+        self.food_timer: float = INITIAL_FOOD_TIMER
         self.halved_recently: float = 0.0
         self.just_ate: bool = False
         self.warn_sound_pending: bool = False
-        self._last_warn_integer: int = int(DEFAULT_FOOD_TIMER)
+        self._last_warn_tick: int = int(INITIAL_FOOD_TIMER)
 
         self.init_new_game()
+
+    def compute_current_food_timer_max(self) -> float:
+        """
+        Calculates dynamic countdown duration based on apples eaten and play duration.
+        Gets progressively tighter and more aggressive the longer the player lasts.
+        """
+        # Time survival decay: ramps up as you survive longer
+        time_factor = (self.play_time * FOOD_TIMER_DECAY_PER_SEC) + (max(0.0, self.play_time - 30.0) * 0.02)
+        apple_factor = self.apples_eaten * FOOD_TIMER_DECAY_PER_APPLE
+        total_decay = time_factor + apple_factor
+        return max(MIN_FOOD_TIMER, INITIAL_FOOD_TIMER - total_decay)
+
+    @property
+    def aggression_ratio(self) -> float:
+        """Progressive aggression meter from 0.0 (start) to 1.0 (extreme frenzy)."""
+        span = INITIAL_FOOD_TIMER - MIN_FOOD_TIMER
+        if span <= 0:
+            return 0.0
+        return max(0.0, min(1.0, (INITIAL_FOOD_TIMER - self.food_timer_max) / span))
+
+    @property
+    def urgency_threshold(self) -> float:
+        """Dynamic threshold when the screen starts pulsing red and warning beeps play."""
+        return min(4.0, max(2.0, self.food_timer_max * 0.45))
 
     def init_new_game(self) -> None:
         self.snake.body.clear()
@@ -63,11 +93,16 @@ class GameManager:
 
         self.score = 0
         self.tick_interval_ms = INITIAL_TICK_MS
-        self.food_timer = self.food_timer_max
+
+        self.apples_eaten = 0
+        self.play_time = 0.0
+        self.food_timer_max = INITIAL_FOOD_TIMER
+        self.food_timer = INITIAL_FOOD_TIMER
         self.halved_recently = 0.0
         self.just_ate = False
         self.warn_sound_pending = False
-        self._last_warn_integer = int(self.food_timer_max)
+        self._last_warn_tick = int(INITIAL_FOOD_TIMER)
+
         self.spawn_food()
 
     def reset(self) -> None:
@@ -131,12 +166,18 @@ class GameManager:
         if self.state != GameState.PLAYING:
             return halved, warn_tick
 
+        self.play_time += dt
         self.food_timer -= dt
 
-        # Check for whole-second warning blips when timer <= 4.0s
-        cur_sec = int(self.food_timer)
-        if self.food_timer <= 4.0 and cur_sec != self._last_warn_integer and cur_sec >= 0:
-            self._last_warn_integer = cur_sec
+        # Check for warning blips when timer <= urgency threshold
+        # In critical final moments (<= 1.8s), trigger double-speed panic warnings (every 0.5s)
+        if self.food_timer <= 1.8:
+            cur_tick = int(self.food_timer * 2.0)
+        else:
+            cur_tick = int(self.food_timer)
+
+        if self.food_timer <= self.urgency_threshold and cur_tick != self._last_warn_tick and self.food_timer >= 0.0:
+            self._last_warn_tick = cur_tick
             warn_tick = True
 
         # Countdown expired: Halve the snake in size!
@@ -147,8 +188,10 @@ class GameManager:
             while len(self.snake.body) > new_len:
                 self.snake.body.pop()
 
+            # Recalculate dynamic max timer and reset
+            self.food_timer_max = self.compute_current_food_timer_max()
             self.food_timer = self.food_timer_max
-            self._last_warn_integer = int(self.food_timer_max)
+            self._last_warn_tick = int(self.food_timer_max)
             self.halved_recently = 1.8  # show notification banner for 1.8s
             halved = True
 
@@ -187,14 +230,16 @@ class GameManager:
         # 6. Check food
         if next_head == self.food:
             self.score += 10
+            self.apples_eaten += 1
             if self.score > self.high_score:
                 self.high_score = self.score
             self.snake.grow_pending = True
             self.just_ate = True
 
-            # Reset food urgency timer back to full
+            # Recalculate dynamic aggressive timer window
+            self.food_timer_max = self.compute_current_food_timer_max()
             self.food_timer = self.food_timer_max
-            self._last_warn_integer = int(self.food_timer_max)
+            self._last_warn_tick = int(self.food_timer_max)
 
             # Speed ramp
             if self.tick_interval_ms > MIN_TICK_MS:

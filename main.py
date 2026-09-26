@@ -175,7 +175,7 @@ def main():
         # 3. Urgency Countdown & Halving Penalty
         halved, warn_tick = game.update_timers(dt)
         if warn_tick:
-            sound.play_warn()
+            sound.play_warn(critical=(game.food_timer <= 1.8))
         if halved:
             sound.play_shrink()
             renderer.trigger_shrink_effects()

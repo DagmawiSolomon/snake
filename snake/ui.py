@@ -254,16 +254,20 @@ class RetroArcadeUI:
 
         glDisable(GL_BLEND)
 
-    def render_urgency_overlay(self, food_timer: float, width: int, height: int, anim_time: float) -> None:
-        if food_timer > 4.0 or food_timer <= 0.0:
+    def render_urgency_overlay(self, game: GameManager, width: int, height: int, anim_time: float) -> None:
+        thresh = game.urgency_threshold
+        if game.food_timer > thresh or game.food_timer <= 0.0:
             return
 
-        urgency = 1.0 - (food_timer / 4.0)
-        freq = 8.0 + urgency * 16.0
+        urgency = 1.0 - (game.food_timer / thresh)
+        aggro = game.aggression_ratio
+
+        # Escalating pulse frequency: higher urgency & survival duration = faster hyper-pulse!
+        freq = 8.0 + (urgency * 18.0) + (aggro * 12.0)
         pulse = 0.5 + 0.5 * math.sin(anim_time * freq)
 
-        base_alpha = 0.08 + (0.28 * urgency)
-        alpha = base_alpha * pulse
+        base_alpha = 0.09 + (0.32 * urgency) + (0.12 * aggro)
+        alpha = min(0.70, base_alpha * pulse)
 
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -272,6 +276,7 @@ class RetroArcadeUI:
         w = float(width)
         h = float(height)
 
+        # Ambient red urgency wash
         glBegin(GL_QUADS)
         glVertex2f(0.0, 0.0)
         glVertex2f(w, 0.0)
@@ -279,8 +284,9 @@ class RetroArcadeUI:
         glVertex2f(0.0, h)
         glEnd()
 
-        border_size = 24.0 + 20.0 * urgency
-        glColor4f(RED[0], RED[1], RED[2], min(1.0, alpha * 2.2))
+        # Expanding perimeter warning border
+        border_size = 24.0 + (30.0 * urgency) + (18.0 * aggro)
+        glColor4f(RED[0], RED[1], RED[2], min(0.95, alpha * 2.5))
         glBegin(GL_QUADS)
         # Top bar
         glVertex2f(0, 0); glVertex2f(w, 0); glVertex2f(w, border_size); glVertex2f(0, border_size)
@@ -332,8 +338,8 @@ class RetroArcadeUI:
         # Section 2: Countdown & Hazard
         draw_text("-- COUNTDOWN & HAZARDS --", 0, height * 0.42, 2.2,
                   *RED, centered=True, window_width=width)
-        draw_text("EACH APPLE HAS A 12-SECOND URGENCY TIMER", 0, height * 0.47, 2.0,
-                  *AMBER, centered=True, window_width=width)
+        draw_text("APPLES HAVE AN AGGRESSIVE TIMER THAT SHRINKS OVER TIME!", 0, height * 0.47, 1.9,
+                  *RED, centered=True, window_width=width)
         draw_text("TIME OUT: SNAKE PENALTY HALVES IN SIZE (-50%)!", 0, height * 0.52, 2.0,
                   *RED, centered=True, window_width=width)
         draw_text("CRASHING INTO YOUR OWN BODY TRIGGERS GAME OVER", 0, height * 0.57, 2.0,
@@ -354,29 +360,50 @@ class RetroArcadeUI:
                       *NEON_GREEN, centered=True, window_width=width)
 
     def render_playing_hud(self, game: GameManager, width: int, height: int) -> None:
-        # Score HUD
+        # Score HUD (top left)
         draw_text(f"SCORE {game.score:05d}", 24, 20, 2.4, *AMBER)
 
-        # High Score
+        # High Score (top center)
         draw_text(f"HIGH {game.high_score:05d}", 0, 20, 2.4, *AMBER, centered=True, window_width=width)
 
-        # Countdown Timer HUD
-        t = max(0.0, game.food_timer)
-        timer_str = f"APPLE {t:04.1f}S"
-        if t <= 4.0:
-            flash_on = (int(self.blink_timer * 6.0) % 2) == 0 if t <= 2.0 else True
-            if flash_on:
-                draw_text(timer_str, 24, 48, 2.4, *RED)
-                draw_text("HURRY!", 180, 48, 2.2, *RED)
-        else:
-            draw_text(timer_str, 24, 48, 2.2, *AMBER)
+        # Survival Timer (top center, row 2)
+        surv_secs = int(game.play_time)
+        surv_str = f"SURV {surv_secs // 60:02d}:{surv_secs % 60:02d}"
+        draw_text(surv_str, 0, 48, 2.2, *CYAN, centered=True, window_width=width)
 
-        # Active Face
+        # Countdown Timer HUD (top left, row 2)
+        t = max(0.0, game.food_timer)
+        thresh = game.urgency_threshold
+        timer_str = f"APPLE {t:04.1f}S"
+
+        if t <= 1.8:
+            flash_on = (int(self.blink_timer * 10.0) % 2) == 0
+            if flash_on:
+                draw_text(f"PANIC! {t:04.1f}S", 24, 48, 2.4, *RED)
+        elif t <= thresh:
+            flash_on = (int(self.blink_timer * 6.0) % 2) == 0
+            if flash_on:
+                draw_text(f"HURRY! {t:04.1f}S", 24, 48, 2.3, *RED)
+            else:
+                draw_text(timer_str, 24, 48, 2.2, *RED)
+        else:
+            col = NEON_GREEN if (t / game.food_timer_max) > 0.55 else AMBER
+            draw_text(timer_str, 24, 48, 2.2, *col)
+
+        # Aggression / Frenzy Mode Indicator
+        if game.aggression_ratio >= 0.75:
+            frenzy_blink = (int(self.blink_timer * 4.0) % 2) == 0
+            if frenzy_blink:
+                draw_text("[FRENZY]", 200, 48, 2.0, *RED)
+        elif game.aggression_ratio >= 0.35:
+            draw_text("[AGGRO]", 200, 48, 1.9, *AMBER)
+
+        # Active Face (top right, row 1)
         face_str = f"FACE {face_to_string(game.get_active_face())}"
         face_w = get_text_width(face_str, 2.4)
         draw_text(face_str, width - face_w - 24, 20, 2.4, *CYAN)
 
-        # Snake Length Counter
+        # Snake Length Counter (top right, row 2)
         len_str = f"LEN {len(game.snake.body):02d}"
         len_w = get_text_width(len_str, 2.2)
         draw_text(len_str, width - len_w - 24, 48, 2.2, *BODY_GREEN)
@@ -450,9 +477,9 @@ class RetroArcadeUI:
         elif state == GameState.GAME_OVER:
             self.render_game_over(game, window_width, window_height)
 
-        # Urgency pulsing red screen vignette when time is running out (<= 4.0s)
+        # Urgency pulsing red screen vignette when time is running out
         if state == GameState.PLAYING:
-            self.render_urgency_overlay(game.food_timer, window_width, window_height, anim_time)
+            self.render_urgency_overlay(game, window_width, window_height, anim_time)
 
         # Impact / Halving flash
         self.render_screen_flash(window_width, window_height)

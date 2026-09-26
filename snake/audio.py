@@ -105,6 +105,7 @@ class SoundManager:
         self._snd_eat = None
         self._snd_shrink = None
         self._snd_warn = None
+        self._snd_panic = None
         self._snd_game_over = None
         self._snd_start = None
         self._snd_turn = None
@@ -122,8 +123,11 @@ class SoundManager:
             # 2. Halve snake penalty: Deflating pitch dive (650Hz -> 110Hz)
             self._snd_shrink = _generate_frequency_sweep(650.0, 110.0, 0.38, volume=0.45)
 
-            # 3. Urgent timer warning tick: Short 987Hz arcade blip
+            # 3. Urgent timer warning tick: Standard 987Hz arcade blip
             self._snd_warn = _generate_square_tone(987.77, 0.055, volume=0.3)
+
+            # 3b. Frenzy / panic timer warning tick: High piercing 1318Hz alarm
+            self._snd_panic = _generate_square_tone(1318.51, 0.045, volume=0.38)
 
             # 4. Game over: 8-bit crash explosion
             self._snd_game_over = _generate_noise_crash(0.55, volume=0.45)
@@ -148,8 +152,12 @@ class SoundManager:
         if self.enabled and self._snd_shrink:
             self._snd_shrink.play()
 
-    def play_warn(self):
-        if self.enabled and self._snd_warn:
+    def play_warn(self, critical: bool = False):
+        if not self.enabled:
+            return
+        if critical and self._snd_panic:
+            self._snd_panic.play()
+        elif self._snd_warn:
             self._snd_warn.play()
 
     def play_game_over(self):
