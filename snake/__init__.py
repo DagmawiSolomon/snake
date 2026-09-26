@@ -8,6 +8,7 @@ from .camera import OrbitCamera
 from .renderer import Renderer
 from .palette import BLACK, NEON_GREEN, AMBER, CYAN, BODY_GREEN, RED, DIM_GREEN
 from .ui import RetroArcadeUI
+from .audio import SoundManager
 
 __all__ = [
     'Face', 'Dir', 'GridPos', 'Vec3', 'GRID_N', 'CUBE_SIZE', 'CELL_SIZE', 'HALF_CUBE',
@@ -15,5 +16,7 @@ __all__ = [
     'OrbitCamera',
     'Renderer',
     'RetroArcadeUI',
+    'SoundManager',
     'BLACK', 'NEON_GREEN', 'AMBER', 'CYAN', 'BODY_GREEN', 'RED', 'DIM_GREEN',
 ]
+

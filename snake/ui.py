@@ -1,7 +1,8 @@
 """
-Retro Arcade 2D UI, CRT scanlines, and 5x7 bitmap font rendering for Snake on a Cube.
+Retro Arcade 2D UI, CRT scanlines, countdown urgency overlay, and 5x7 bitmap font rendering.
 """
 
+import math
 from OpenGL.GL import (
     glEnable, glDisable, glBlendFunc, glMatrixMode, glPushMatrix, glPopMatrix,
     glLoadIdentity, glBegin, glEnd, glVertex2f, glColor3f, glColor4f, glLineWidth,
@@ -190,6 +191,10 @@ class RetroArcadeUI:
         self.flash_timer = 0.45
         self.shake_timer = 0.35
 
+    def trigger_shrink_flash(self) -> None:
+        self.flash_timer = 0.60
+        self.shake_timer = 0.40
+
     def render_scanlines(self, width: int, height: int) -> None:
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -237,7 +242,7 @@ class RetroArcadeUI:
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-        alpha = (self.flash_timer / 0.45) * 0.5
+        alpha = (self.flash_timer / 0.60) * 0.6
         glColor4f(RED[0], RED[1], RED[2], alpha)
 
         glBegin(GL_QUADS)
@@ -249,29 +254,111 @@ class RetroArcadeUI:
 
         glDisable(GL_BLEND)
 
+    def render_urgency_overlay(self, food_timer: float, width: int, height: int, anim_time: float) -> None:
+        """
+        Renders a pulsing red screen vignette/overlay when time to reach the apple is running out (<= 4.0s).
+        Pulse speed and alpha escalate as time reaches 0.
+        """
+        if food_timer > 4.0 or food_timer <= 0.0:
+            return
+
+        # Escalate pulse frequency from 8 rad/s to 24 rad/s
+        urgency = 1.0 - (food_timer / 4.0)
+        freq = 8.0 + urgency * 16.0
+        pulse = 0.5 + 0.5 * math.sin(anim_time * freq)
+
+        base_alpha = 0.08 + (0.28 * urgency)
+        alpha = base_alpha * pulse
+
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glColor4f(RED[0], RED[1], RED[2], alpha)
+
+        w = float(width)
+        h = float(height)
+
+        # Draw red vignette frame around borders + semi-transparent wash
+        glBegin(GL_QUADS)
+        glVertex2f(0.0, 0.0)
+        glVertex2f(w, 0.0)
+        glVertex2f(w, h)
+        glVertex2f(0.0, h)
+        glEnd()
+
+        # Extra thick pulsing border frame for claustrophobic urgency
+        border_size = 24.0 + 20.0 * urgency
+        glColor4f(RED[0], RED[1], RED[2], min(1.0, alpha * 2.2))
+        glBegin(GL_QUADS)
+        # Top bar
+        glVertex2f(0, 0); glVertex2f(w, 0); glVertex2f(w, border_size); glVertex2f(0, border_size)
+        # Bottom bar
+        glVertex2f(0, h - border_size); glVertex2f(w, h - border_size); glVertex2f(w, h); glVertex2f(0, h)
+        # Left bar
+        glVertex2f(0, 0); glVertex2f(border_size, 0); glVertex2f(border_size, h); glVertex2f(0, h)
+        # Right bar
+        glVertex2f(w - border_size, 0); glVertex2f(w, 0); glVertex2f(w, h); glVertex2f(w - border_size, h)
+        glEnd()
+
+        glDisable(GL_BLEND)
+
     def render_menu(self, game: GameManager, width: int, height: int) -> None:
         draw_text("SNAKE ON A CUBE", 0, height * 0.22, 5.0,
                   *NEON_GREEN, centered=True, window_width=width)
 
-        draw_text(f"HIGH SCORE  {game.high_score:05d}", 0, height * 0.42, 3.0,
+        draw_text(f"HIGH SCORE  {game.high_score:05d}", 0, height * 0.38, 3.0,
+                  *AMBER, centered=True, window_width=width)
+
+        # Feature explanation banner
+        draw_text("WARNING: EAT APPLES BEFORE COUNTDOWN ENDS", 0, height * 0.48, 2.0,
+                  *RED, centered=True, window_width=width)
+        draw_text("OR SNAKE HALVES IN SIZE (-50%)!", 0, height * 0.53, 2.0,
                   *AMBER, centered=True, window_width=width)
 
         blink_on = (int(self.blink_timer * 2.0) % 2) == 0
         if blink_on:
-            draw_text("PRESS SPACE TO START", 0, height * 0.62, 3.2,
+            draw_text("PRESS SPACE TO START", 0, height * 0.66, 3.2,
                       *AMBER, centered=True, window_width=width)
 
         draw_text("[ARROW KEYS / WASD] MOVE", 0, height * 0.84, 2.0,
                   *AMBER, centered=True, window_width=width)
 
     def render_playing_hud(self, game: GameManager, width: int, height: int) -> None:
+        # Score HUD
         draw_text(f"SCORE {game.score:05d}", 24, 20, 2.4, *AMBER)
+
+        # High Score
         draw_text(f"HIGH {game.high_score:05d}", 0, 20, 2.4, *AMBER, centered=True, window_width=width)
 
+        # Countdown Timer HUD
+        t = max(0.0, game.food_timer)
+        timer_str = f"APPLE {t:04.1f}S"
+        if t <= 4.0:
+            # Urgent red text, rapid flash when <= 2s
+            flash_on = (int(self.blink_timer * 6.0) % 2) == 0 if t <= 2.0 else True
+            if flash_on:
+                draw_text(timer_str, 24, 48, 2.4, *RED)
+                draw_text("HURRY!", 180, 48, 2.2, *RED)
+        else:
+            draw_text(timer_str, 24, 48, 2.2, *AMBER)
+
+        # Active Face
         face_str = f"FACE {face_to_string(game.get_active_face())}"
         face_w = get_text_width(face_str, 2.4)
         draw_text(face_str, width - face_w - 24, 20, 2.4, *CYAN)
 
+        # Snake Length Counter
+        len_str = f"LEN {len(game.snake.body):02d}"
+        len_w = get_text_width(len_str, 2.2)
+        draw_text(len_str, width - len_w - 24, 48, 2.2, *BODY_GREEN)
+
+        # Urgent Penalty Notification Banner
+        if game.halved_recently > 0.0:
+            blink_fast = (int(self.blink_timer * 6.0) % 2) == 0
+            if blink_fast:
+                draw_text("TIME OUT! SNAKE HALVED! (-50%)", 0, height * 0.40, 3.2,
+                          *RED, centered=True, window_width=width)
+
+        # Controls reminder at bottom
         draw_text("[P] PAUSE", 24, height - 28, 1.8, *AMBER)
 
     def render_paused(self, width: int, height: int) -> None:
@@ -331,8 +418,17 @@ class RetroArcadeUI:
         elif state == GameState.GAME_OVER:
             self.render_game_over(game, window_width, window_height)
 
+        # Urgency pulsing red screen vignette when time is running out (<= 4.0s)
+        if state == GameState.PLAYING:
+            self.render_urgency_overlay(game.food_timer, window_width, window_height, anim_time)
+
+        # Impact / Halving flash
         self.render_screen_flash(window_width, window_height)
+
+        # CRT scanlines
         self.render_scanlines(window_width, window_height)
+
+        # CRT arcade cabinet bezel
         self.render_crt_bezel(window_width, window_height)
 
         glPopMatrix()

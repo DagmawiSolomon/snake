@@ -107,5 +107,39 @@ class TestCubeTopology(unittest.TestCase):
         self.assertEqual(game.score, old_score + 10)
         self.assertEqual(len(game.snake.body), old_len + 1)
 
+    def test_food_timer_and_halving(self):
+        """
+        Tests that countdown timer running out halves the snake body in size.
+        """
+        game = GameManager()
+        game.start_game()
+
+        # Manually grow snake to length 10
+        while len(game.snake.body) < 10:
+            last = game.snake.body[-1]
+            game.snake.body.append(GridPos(last.face, last.u, last.v))
+
+        self.assertEqual(len(game.snake.body), 10)
+
+        # Advance timer by 6 seconds (not expired yet)
+        halved, _ = game.update_timers(6.0)
+        self.assertFalse(halved)
+        self.assertEqual(len(game.snake.body), 10)
+        self.assertAlmostEqual(game.food_timer, 6.0, places=2)
+
+        # Advance timer past expiration (remaining 6.5s)
+        halved, _ = game.update_timers(6.5)
+        self.assertTrue(halved)
+        # 10 halved -> 5
+        self.assertEqual(len(game.snake.body), 5)
+        # Timer resets back to full
+        self.assertEqual(game.food_timer, game.food_timer_max)
+
+        # Halve again when length is 5 -> max(3, 5 // 2) = 3
+        halved, _ = game.update_timers(12.5)
+        self.assertTrue(halved)
+        self.assertEqual(len(game.snake.body), 3)
+
 if __name__ == '__main__':
     unittest.main()
+

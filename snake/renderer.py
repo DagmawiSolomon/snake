@@ -42,6 +42,10 @@ class Renderer:
     def trigger_loss_effects(self) -> None:
         self.ui.trigger_loss_effects()
 
+    def trigger_shrink_effects(self) -> None:
+        self.ui.trigger_shrink_flash()
+
+
     def render_cube_and_grids(self) -> None:
         # 1. Solid black cube faces (#000000)
         glColor3f(*BLACK)
