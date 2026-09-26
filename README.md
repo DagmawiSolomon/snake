@@ -87,10 +87,12 @@ run.bat
 | **W / A / S / D** | Steer Snake (Up, Left, Down, Right) |
 | **Arrow Keys** | Steer Snake (Up, Left, Down, Right) |
 | **P** | Pause / Resume |
+| **F11 / F** | Toggle Fullscreen / Windowed Mode |
 | **R** | Restart game |
 | **M** | Return to Menu (from Game Over or Pause) |
 | **1 - 6** | Quick camera face inspection (+X, -X, +Y, -Y, +Z, -Z) |
 | **ESC** | Exit game |
+
 
 ---
 

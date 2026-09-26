@@ -1,17 +1,18 @@
 """
 Main executable entry point for Snake on a Cube - PyOpenGL 3D.
-Features retro arcade audio, urgency countdown timer, and snake halving mechanics.
+Features retro arcade audio, urgency countdown timer, snake halving mechanics, and fullscreen support.
 """
 
 import sys
 import pygame
 from pygame.locals import (
-    DOUBLEBUF, OPENGL, RESIZABLE,
+    DOUBLEBUF, OPENGL, RESIZABLE, FULLSCREEN,
     QUIT, KEYDOWN, VIDEORESIZE,
     K_ESCAPE, K_SPACE, K_RETURN,
     K_w, K_s, K_a, K_d,
     K_UP, K_DOWN, K_LEFT, K_RIGHT,
     K_p, K_r, K_m,
+    K_F11, K_f,
     K_1, K_2, K_3, K_4, K_5, K_6
 )
 from OpenGL.GL import glViewport, glMatrixMode, glLoadIdentity, GL_PROJECTION, GL_MODELVIEW
@@ -37,18 +38,35 @@ def main():
     pygame.init()
     pygame.font.init()
 
+    pygame.display.set_caption("Snake on a Cube - PyOpenGL 3D")
+
+    renderer = Renderer()
+    is_fullscreen = True
     window_width = 960
     window_height = 720
 
-    pygame.display.set_caption("Snake on a Cube - PyOpenGL 3D")
-    pygame.display.set_mode((window_width, window_height), DOUBLEBUF | OPENGL | RESIZABLE)
+    def apply_display_mode(fullscreen: bool):
+        nonlocal window_width, window_height, is_fullscreen
+        is_fullscreen = fullscreen
+        if is_fullscreen:
+            info = pygame.display.Info()
+            window_width = info.current_w if info.current_w > 0 else 1366
+            window_height = info.current_h if info.current_h > 0 else 768
+            flags = DOUBLEBUF | OPENGL | FULLSCREEN
+        else:
+            window_width = 960
+            window_height = 720
+            flags = DOUBLEBUF | OPENGL | RESIZABLE
 
-    setup_perspective(window_width, window_height)
+        pygame.display.set_mode((window_width, window_height), flags)
+        setup_perspective(window_width, window_height)
+        renderer.init_gl()
+
+    # Launch into full screen by default
+    apply_display_mode(True)
 
     game = GameManager()
     camera = OrbitCamera()
-    renderer = Renderer()
-    renderer.init_gl()
     sound = SoundManager()
 
     clock = pygame.time.Clock()
@@ -65,7 +83,7 @@ def main():
                 running = False
                 break
 
-            elif event.type == VIDEORESIZE:
+            elif event.type == VIDEORESIZE and not is_fullscreen:
                 window_width, window_height = event.size
                 setup_perspective(window_width, window_height)
 
@@ -74,8 +92,12 @@ def main():
                     running = False
                     break
 
+                # Fullscreen Toggle (F11 or F)
+                if event.key in (K_F11, K_f):
+                    apply_display_mode(not is_fullscreen)
+
                 # Start / Pause / Resume / Back to menu
-                if event.key in (K_SPACE, K_RETURN):
+                elif event.key in (K_SPACE, K_RETURN):
                     if game.state == GameState.MENU:
                         game.start_game()
                         camera.set_target_face(game.get_active_face())

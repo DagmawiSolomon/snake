@@ -319,7 +319,7 @@ class RetroArcadeUI:
             draw_text("PRESS SPACE TO START", 0, height * 0.66, 3.2,
                       *AMBER, centered=True, window_width=width)
 
-        draw_text("[ARROW KEYS / WASD] MOVE", 0, height * 0.84, 2.0,
+        draw_text("[ARROW KEYS / WASD] MOVE   [F11] FULLSCREEN", 0, height * 0.84, 2.0,
                   *AMBER, centered=True, window_width=width)
 
     def render_playing_hud(self, game: GameManager, width: int, height: int) -> None:
@@ -359,7 +359,8 @@ class RetroArcadeUI:
                           *RED, centered=True, window_width=width)
 
         # Controls reminder at bottom
-        draw_text("[P] PAUSE", 24, height - 28, 1.8, *AMBER)
+        draw_text("[P] PAUSE   [F11] FULLSCREEN", 24, height - 28, 1.8, *AMBER)
+
 
     def render_paused(self, width: int, height: int) -> None:
         glEnable(GL_BLEND)
