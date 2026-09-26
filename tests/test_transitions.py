@@ -135,10 +135,40 @@ class TestCubeTopology(unittest.TestCase):
         # Timer resets back to full
         self.assertEqual(game.food_timer, game.food_timer_max)
 
-        # Halve again when length is 5 -> max(3, 5 // 2) = 3
+        # Halve again when length is 5 -> max(1, 5 // 2) = 2
         halved, _ = game.update_timers(12.5)
         self.assertTrue(halved)
+        self.assertEqual(len(game.snake.body), 2)
+
+        # Halve again when length is 2 -> max(1, 2 // 2) = 1 (head only)
+        halved, _ = game.update_timers(12.5)
+        self.assertTrue(halved)
+        self.assertEqual(len(game.snake.body), 1)
+
+        # Halve again when length is 1 -> Starvation triggers GAME_OVER
+        halved, _ = game.update_timers(12.5)
+        self.assertTrue(halved)
+        self.assertEqual(game.state, GameState.GAME_OVER)
+
+    def test_halving_without_eating_any_apple(self):
+        """
+        Tests that starting snake (length 3, 0 apples eaten) halves when countdown expires.
+        """
+        game = GameManager()
+        game.start_game()
         self.assertEqual(len(game.snake.body), 3)
+        self.assertEqual(game.apples_eaten, 0)
+
+        # Countdown expires without eating any apple
+        halved, _ = game.update_timers(game.food_timer + 0.1)
+        self.assertTrue(halved)
+        # 3 // 2 -> 1 segment (head only)
+        self.assertEqual(len(game.snake.body), 1)
+
+        # Expiration at length 1 triggers starvation Game Over
+        halved, _ = game.update_timers(game.food_timer + 0.1)
+        self.assertTrue(halved)
+        self.assertEqual(game.state, GameState.GAME_OVER)
 
     def test_aggressive_timer_scaling(self):
         """

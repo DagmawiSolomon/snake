@@ -177,8 +177,12 @@ def main():
         if warn_tick:
             sound.play_warn(critical=(game.food_timer <= 1.8))
         if halved:
-            sound.play_shrink()
-            renderer.trigger_shrink_effects()
+            if game.state == GameState.GAME_OVER:
+                sound.play_game_over()
+                renderer.trigger_loss_effects()
+            else:
+                sound.play_shrink()
+                renderer.trigger_shrink_effects()
 
         # 4. Game Tick Loop
         if game.state == GameState.PLAYING:

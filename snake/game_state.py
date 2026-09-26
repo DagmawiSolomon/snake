@@ -183,8 +183,13 @@ class GameManager:
         # Countdown expired: Halve the snake in size!
         if self.food_timer <= 0.0:
             cur_len = len(self.snake.body)
-            # Retain minimum length of 3 segments
-            new_len = max(3, cur_len // 2)
+            # If already at minimum length 1 (head only), starvation triggers Game Over!
+            if cur_len <= 1:
+                self.state = GameState.GAME_OVER
+                return True, False
+
+            # Retain minimum length of 1 segment (head only); halve body size
+            new_len = max(1, cur_len // 2)
             while len(self.snake.body) > new_len:
                 self.snake.body.pop()
 
