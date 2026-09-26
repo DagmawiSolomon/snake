@@ -5,8 +5,8 @@ Game logic and state management for Snake on a Cube 3D.
 from collections import deque
 from enum import Enum, auto
 import random
-from typing import Deque, List, Optional
-from cube_topology import Face, Dir, GridPos, GRID_N, step_position, is_opposite
+from typing import Deque, List
+from .cube_topology import Face, Dir, GridPos, GRID_N, step_position, is_opposite
 
 class GameState(Enum):
     MENU = auto()
@@ -112,8 +112,6 @@ class GameManager:
         next_head, next_dir = step_position(self.snake.body[0], self.snake.current_dir)
 
         # 3. Collision check
-        # If grow_pending: tail stays, check against entire body.
-        # Otherwise: tail pops this frame, so collision against last segment is safe.
         check_count = len(self.snake.body) if self.snake.grow_pending else (len(self.snake.body) - 1)
         for i in range(check_count):
             if self.snake.body[i] == next_head:

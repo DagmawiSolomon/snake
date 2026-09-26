@@ -16,10 +16,10 @@ from pygame.locals import (
 from OpenGL.GL import glViewport, glMatrixMode, glLoadIdentity, GL_PROJECTION, GL_MODELVIEW
 from OpenGL.GLU import gluPerspective
 
-from cube_topology import Face, Dir
-from game_state import GameState, GameManager
-from camera import OrbitCamera
-from renderer import Renderer
+from snake.cube_topology import Face, Dir
+from snake.game_state import GameState, GameManager
+from snake.camera import OrbitCamera
+from snake.renderer import Renderer
 
 def setup_perspective(width: int, height: int) -> None:
     if height == 0:
@@ -129,7 +129,7 @@ def main():
 
         # 3. Render and Animation Update (60 FPS)
         dt = clock.tick(60) / 1000.0
-        dt = min(dt, 0.05)  # clamp to avoid huge delta on freeze/drag
+        dt = min(dt, 0.05)
         anim_time += dt
 
         renderer.update(dt)

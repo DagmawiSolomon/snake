@@ -9,9 +9,9 @@ from OpenGL.GL import (
     GL_QUADS, GL_LINES, GL_LINE_LOOP, GL_PROJECTION, GL_MODELVIEW
 )
 from OpenGL.GLU import gluOrtho2D
-from palette import BLACK, NEON_GREEN, AMBER, CYAN, RED, DIM_GREEN, SCANLINE_ALPHA
-from cube_topology import face_to_string
-from game_state import GameState, GameManager
+from .palette import BLACK, NEON_GREEN, AMBER, CYAN, RED, DIM_GREEN, SCANLINE_ALPHA
+from .cube_topology import face_to_string
+from .game_state import GameState, GameManager
 
 FONT_5X7 = [
     # Space (32)
@@ -209,7 +209,6 @@ class RetroArcadeUI:
         h = float(height)
         border = 8.0
 
-        # Cabinet outer border in pure black (#000000)
         glColor3f(*BLACK)
         glBegin(GL_QUADS)
         # Top
@@ -222,7 +221,6 @@ class RetroArcadeUI:
         glVertex2f(w - border, 0); glVertex2f(w, 0); glVertex2f(w, h); glVertex2f(w - border, h)
         glEnd()
 
-        # Dim green bezel outline (#115511)
         glColor3f(*DIM_GREEN)
         glLineWidth(1.5)
         glBegin(GL_LINE_LOOP)
@@ -252,41 +250,31 @@ class RetroArcadeUI:
         glDisable(GL_BLEND)
 
     def render_menu(self, game: GameManager, width: int, height: int) -> None:
-        # Title: Neon Green (#33FF33)
         draw_text("SNAKE ON A CUBE", 0, height * 0.22, 5.0,
                   *NEON_GREEN, centered=True, window_width=width)
 
-        # High score line: Amber (#FFB000)
         draw_text(f"HIGH SCORE  {game.high_score:05d}", 0, height * 0.42, 3.0,
                   *AMBER, centered=True, window_width=width)
 
-        # Blinking prompt: Amber (#FFB000) (500ms toggle)
         blink_on = (int(self.blink_timer * 2.0) % 2) == 0
         if blink_on:
             draw_text("PRESS SPACE TO START", 0, height * 0.62, 3.2,
                       *AMBER, centered=True, window_width=width)
 
-        # Controls footer: Amber (#FFB000)
         draw_text("[ARROW KEYS / WASD] MOVE", 0, height * 0.84, 2.0,
                   *AMBER, centered=True, window_width=width)
 
     def render_playing_hud(self, game: GameManager, width: int, height: int) -> None:
-        # Score HUD: Amber (#FFB000)
         draw_text(f"SCORE {game.score:05d}", 24, 20, 2.4, *AMBER)
-
-        # High Score: Amber (#FFB000)
         draw_text(f"HIGH {game.high_score:05d}", 0, 20, 2.4, *AMBER, centered=True, window_width=width)
 
-        # Active Face: Bright Cyan (#33FFFF)
         face_str = f"FACE {face_to_string(game.get_active_face())}"
         face_w = get_text_width(face_str, 2.4)
         draw_text(face_str, width - face_w - 24, 20, 2.4, *CYAN)
 
-        # Controls reminder at bottom: Amber (#FFB000)
         draw_text("[P] PAUSE", 24, height - 28, 1.8, *AMBER)
 
     def render_paused(self, width: int, height: int) -> None:
-        # Translucent black backdrop over the paused 3D scene
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glColor4f(BLACK[0], BLACK[1], BLACK[2], 0.85)
@@ -298,33 +286,25 @@ class RetroArcadeUI:
         glEnd()
         glDisable(GL_BLEND)
 
-        # PAUSED: Amber (#FFB000)
         draw_text("PAUSED", 0, height * 0.40, 5.5, *AMBER, centered=True, window_width=width)
 
-        # Blinking prompt: Amber (#FFB000)
         blink_on = (int(self.blink_timer * 2.0) % 2) == 0
         if blink_on:
             draw_text("PRESS P TO RESUME", 0, height * 0.54, 2.8, *AMBER, centered=True, window_width=width)
 
     def render_game_over(self, game: GameManager, width: int, height: int) -> None:
-        # GAME OVER: Red (#FF3333)
         draw_text("GAME OVER", 0, height * 0.28, 5.5, *RED, centered=True, window_width=width)
-
-        # Final score: Amber (#FFB000)
         draw_text(f"FINAL SCORE  {game.score:05d}", 0, height * 0.46, 3.2, *AMBER, centered=True, window_width=width)
 
-        # New High Score alert: Neon Green (#33FF33)
         if game.score > 0 and game.score >= game.high_score:
             flash = (int(self.blink_timer * 4.0) % 2) == 0
             if flash:
                 draw_text("** NEW HIGH SCORE **", 0, height * 0.56, 2.6, *NEON_GREEN, centered=True, window_width=width)
 
-        # Prompt to return to MENU: Amber (#FFB000)
         blink = (int(self.blink_timer * 2.0) % 2) == 0
         if blink:
             draw_text("PRESS SPACE FOR MENU", 0, height * 0.68, 3.0, *AMBER, centered=True, window_width=width)
 
-        # Quick restart option: Amber (#FFB000)
         draw_text("PRESS R TO RESTART", 0, height * 0.80, 2.0, *AMBER, centered=True, window_width=width)
 
     def render(self, game: GameManager, window_width: int, window_height: int, anim_time: float) -> None:
@@ -351,13 +331,8 @@ class RetroArcadeUI:
         elif state == GameState.GAME_OVER:
             self.render_game_over(game, window_width, window_height)
 
-        # Impact flash
         self.render_screen_flash(window_width, window_height)
-
-        # CRT scanlines (#000000 @ 0.25 alpha)
         self.render_scanlines(window_width, window_height)
-
-        # CRT arcade cabinet bezel
         self.render_crt_bezel(window_width, window_height)
 
         glPopMatrix()

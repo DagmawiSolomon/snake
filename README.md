@@ -1,8 +1,16 @@
 # Snake on a Cube (PyOpenGL 3D)
 
-A 3D Retro-Arcade Snake Game played across the 6 faces of an interconnected 3D cube, implemented in **Python** using **PyOpenGL** and **Pygame**.
+A 3D Retro-Arcade Snake Game played across the 6 faces of an interconnected 3D cube, implemented in **pure Python** using **PyOpenGL** and **Pygame**.
 
 Branch: `pyopengl`
+
+---
+
+## Documentation
+
+For a comprehensive explanation of the mathematics behind the cube manifold, face bases, 24 boundary transitions, orbit camera smoothing, and retro arcade rendering pipeline, see:
+- [Snake_on_a_Cube_Technical_Documentation.pdf](file:///d:/snake/docs/Snake_on_a_Cube_Technical_Documentation.pdf) (located in `docs/`)
+
 
 ---
 
@@ -19,6 +27,32 @@ Branch: `pyopengl`
   - Bobbing and spinning 3D food items.
   - 3D snake head with directional pupil eyes.
 - **Classic Arcade State Flow**: `MENU` -> `PLAYING` -> `PAUSED` -> `GAME OVER`.
+
+---
+
+## Project Structure
+
+```
+snake/
+├── docs/                          # Detailed technical documentation
+│   └── README.md
+├── snake/                         # Core game package
+│   ├── __init__.py                # Package exports
+│   ├── camera.py                  # OrbitCamera with exponential smoothing
+│   ├── cube_topology.py           # Vector math, face bases, 24 transitions
+│   ├── game_state.py              # GameManager, Snake, collision, food logic
+│   ├── palette.py                 # Retro arcade color constants
+│   ├── renderer.py                # 3D OpenGL cube & snake rendering
+│   └── ui.py                      # 2D HUD, 5x7 bitmap font, CRT scanlines
+├── tests/                         # Test suite
+│   ├── __init__.py
+│   └── test_transitions.py       # Topology reversibility & loop unit tests
+├── .gitignore                     # Python-specific gitignore rules
+├── main.py                        # Executable entry point
+├── requirements.txt               # Dependencies (PyOpenGL, pygame)
+├── run.bat                        # Windows batch launcher
+└── README.md                      # Project overview
+```
 
 ---
 
@@ -64,7 +98,7 @@ run.bat
 
 Run the topology transition verification and game mechanics test suite:
 ```bash
-python test_transitions.py
+python -m unittest discover tests
 ```
 This tests:
 1. **Reversibility**: Validates that all 24 boundary crossings can be traversed in reverse with 100% positional accuracy.

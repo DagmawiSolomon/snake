@@ -10,15 +10,15 @@ from OpenGL.GL import (
     GL_DEPTH_TEST, GL_LEQUAL, GL_LIGHTING, GL_FLAT,
     GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_QUADS, GL_LINES
 )
-from OpenGL.GLU import gluNewQuadric, gluSphere, gluDeleteQuadric
-from palette import BLACK, DIM_GREEN, BODY_GREEN, CYAN, RED
-from cube_topology import (
-    Face, Dir, GRID_N, CUBE_SIZE, CELL_SIZE, HALF_CUBE,
+from OpenGL.GLU import gluNewQuadric, gluSphere
+from .palette import BLACK, DIM_GREEN, BODY_GREEN, CYAN, RED
+from .cube_topology import (
+    Face, Dir, GRID_N, CELL_SIZE, HALF_CUBE,
     Vec3, GridPos, get_face_basis, local_to_world, cell_corner_to_world
 )
-from game_state import GameState, GameManager, Snake
-from camera import OrbitCamera
-from ui import RetroArcadeUI
+from .game_state import GameState, GameManager, Snake
+from .camera import OrbitCamera
+from .ui import RetroArcadeUI
 
 class Renderer:
     def __init__(self):
@@ -63,7 +63,7 @@ class Renderer:
         glLineWidth(1.0)
         glColor3f(*DIM_GREEN)
 
-        eps = 0.003  # slight offset to prevent z-fighting
+        eps = 0.003
         glBegin(GL_LINES)
         for f in range(6):
             face = Face(f)
@@ -91,17 +91,16 @@ class Renderer:
         glColor3f(*DIM_GREEN)
         glBegin(GL_LINES)
         # 12 edges of the cube
-        # Bottom 4
         glVertex3f(-h, -h, -h); glVertex3f(h, -h, -h)
         glVertex3f(h, -h, -h);  glVertex3f(h, -h, h)
         glVertex3f(h, -h, h);   glVertex3f(-h, -h, h)
         glVertex3f(-h, -h, h);  glVertex3f(-h, -h, -h)
-        # Top 4
+
         glVertex3f(-h, h, -h);  glVertex3f(h, h, -h)
         glVertex3f(h, h, -h);   glVertex3f(h, h, h)
         glVertex3f(h, h, h);    glVertex3f(-h, h, h)
         glVertex3f(-h, h, h);   glVertex3f(-h, h, -h)
-        # Vertical 4
+
         glVertex3f(-h, -h, -h); glVertex3f(-h, h, -h)
         glVertex3f(h, -h, -h);  glVertex3f(h, h, -h)
         glVertex3f(h, -h, h);   glVertex3f(h, h, h)
@@ -118,7 +117,6 @@ class Renderer:
         v_vec = basis.v_axis * half_w
         n_vec = basis.normal * height
 
-        # 8 vertices of the raised tile block
         b00 = center - u_vec - v_vec
         b10 = center + u_vec - v_vec
         b11 = center + u_vec + v_vec
@@ -129,7 +127,6 @@ class Renderer:
         t11 = b11 + n_vec
         t01 = b01 + n_vec
 
-        # Flat saturated retro color - no lighting falloff or gradients
         glColor3f(r, g, b)
 
         glBegin(GL_QUADS)
@@ -139,31 +136,31 @@ class Renderer:
         glVertex3f(t11.x, t11.y, t11.z)
         glVertex3f(t01.x, t01.y, t01.z)
 
-        # Front (along +v_axis)
+        # Front (+v_axis)
         glVertex3f(t01.x, t01.y, t01.z)
         glVertex3f(t11.x, t11.y, t11.z)
         glVertex3f(b11.x, b11.y, b11.z)
         glVertex3f(b01.x, b01.y, b01.z)
 
-        # Back (along -v_axis)
+        # Back (-v_axis)
         glVertex3f(t00.x, t00.y, t00.z)
         glVertex3f(b00.x, b00.y, b00.z)
         glVertex3f(b10.x, b10.y, b10.z)
         glVertex3f(t10.x, t10.y, t10.z)
 
-        # Right (along +u_axis)
+        # Right (+u_axis)
         glVertex3f(t10.x, t10.y, t10.z)
         glVertex3f(b10.x, b10.y, b10.z)
         glVertex3f(b11.x, b11.y, b11.z)
         glVertex3f(t11.x, t11.y, t11.z)
 
-        # Left (along -u_axis)
+        # Left (-u_axis)
         glVertex3f(t00.x, t00.y, t00.z)
         glVertex3f(t01.x, t01.y, t01.z)
         glVertex3f(b01.x, b01.y, b01.z)
         glVertex3f(b00.x, b00.y, b00.z)
 
-        # Bottom (along -normal)
+        # Bottom (-normal)
         glVertex3f(b00.x, b00.y, b00.z)
         glVertex3f(b01.x, b01.y, b01.z)
         glVertex3f(b11.x, b11.y, b11.z)
@@ -235,7 +232,7 @@ class Renderer:
 
         food_radius = CELL_SIZE * 0.32
 
-        # Flat Red (#FF3333) per retro palette
+        # Flat Red (#FF3333)
         glColor3f(*RED)
         if self._quadric:
             gluSphere(self._quadric, food_radius, 10, 10)
@@ -249,11 +246,9 @@ class Renderer:
         glClearColor(BLACK[0], BLACK[1], BLACK[2], 1.0)
 
         if state in (GameState.MENU, GameState.GAME_OVER):
-            # Skip 3D scene in MENU & GAME_OVER for pure retro arcade feel
             glClear(GL_COLOR_BUFFER_BIT)
             self.ui.render(game, window_width, window_height, anim_time)
         else:
-            # PLAYING or PAUSED: Render 3D cube + snake + food + HUD
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glLoadIdentity()
 

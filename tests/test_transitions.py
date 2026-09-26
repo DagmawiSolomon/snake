@@ -1,13 +1,12 @@
 """
 Comprehensive test suite for cube topology boundary transitions and game mechanics.
-Ported from tests/test_transitions.cpp.
 """
 
 import unittest
-from cube_topology import (
+from snake.cube_topology import (
     Face, Dir, GridPos, GRID_N, step_position, is_opposite
 )
-from game_state import GameManager, GameState
+from snake.game_state import GameManager, GameState
 
 def get_opposite(d: Dir) -> Dir:
     if d == Dir.UP: return Dir.DOWN
@@ -71,7 +70,6 @@ class TestCubeTopology(unittest.TestCase):
             for d in range(4):
                 start_dir = Dir(d)
                 for coord in range(GRID_N):
-                    # Pick an arbitrary coordinate along the track
                     cur = GridPos(start_face, coord, coord)
                     cur_dir = start_dir
                     visited_faces = {cur.face}
@@ -80,10 +78,8 @@ class TestCubeTopology(unittest.TestCase):
                         cur, cur_dir = step_position(cur, cur_dir)
                         visited_faces.add(cur.face)
 
-                    # After 4 * GRID_N steps, must be exactly at start with start_dir
                     self.assertEqual(cur, GridPos(start_face, coord, coord))
                     self.assertEqual(cur_dir, start_dir)
-                    # And must have visited exactly 4 distinct faces
                     self.assertEqual(len(visited_faces), 4)
 
     def test_game_manager_simulation(self):
@@ -96,12 +92,10 @@ class TestCubeTopology(unittest.TestCase):
         self.assertEqual(game.state, GameState.PLAYING)
         self.assertEqual(len(game.snake.body), 3)
 
-        # Move 5 steps
         for _ in range(5):
             moved = game.tick()
             self.assertTrue(moved)
 
-        # Teleport food right in front of head and tick
         head = game.snake.body[0]
         front_pos, _ = step_position(head, game.snake.current_dir)
         game.food = front_pos
