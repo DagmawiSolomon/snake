@@ -249,9 +249,10 @@ class Renderer:
 
         glClearColor(BLACK[0], BLACK[1], BLACK[2], 1.0)
 
-        if state in (GameState.MENU, GameState.GAME_OVER):
+        if state in (GameState.MENU, GameState.GAME_OVER, GameState.HELP):
             glClear(GL_COLOR_BUFFER_BIT)
             self.ui.render(game, window_width, window_height, anim_time)
+
         else:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glLoadIdentity()

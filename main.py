@@ -12,6 +12,7 @@ from pygame.locals import (
     K_w, K_s, K_a, K_d,
     K_UP, K_DOWN, K_LEFT, K_RIGHT,
     K_p, K_r, K_m,
+    K_h, K_F1,
     K_F11, K_f,
     K_1, K_2, K_3, K_4, K_5, K_6
 )
@@ -88,13 +89,27 @@ def main():
                 setup_perspective(window_width, window_height)
 
             elif event.type == KEYDOWN:
-                if event.key == K_ESCAPE:
-                    running = False
-                    break
-
                 # Fullscreen Toggle (F11 or F)
                 if event.key in (K_F11, K_f):
                     apply_display_mode(not is_fullscreen)
+                    continue
+
+                if event.key == K_ESCAPE:
+                    if game.state == GameState.HELP:
+                        game.state = GameState.MENU
+                        sound.play_pause()
+                    else:
+                        running = False
+                        break
+
+                # Help / How to Play toggle (H or F1)
+                elif event.key in (K_h, K_F1):
+                    if game.state == GameState.MENU:
+                        game.state = GameState.HELP
+                        sound.play_pause()
+                    elif game.state == GameState.HELP:
+                        game.state = GameState.MENU
+                        sound.play_pause()
 
                 # Start / Pause / Resume / Back to menu
                 elif event.key in (K_SPACE, K_RETURN):
@@ -103,7 +118,7 @@ def main():
                         camera.set_target_face(game.get_active_face())
                         last_tick_time = current_time
                         sound.play_start()
-                    elif game.state == GameState.GAME_OVER:
+                    elif game.state in (GameState.HELP, GameState.GAME_OVER):
                         game.state = GameState.MENU
                         sound.play_pause()
                     elif game.state in (GameState.PLAYING, GameState.PAUSED):
@@ -126,7 +141,7 @@ def main():
                     sound.play_start()
 
                 elif event.key == K_m:
-                    if game.state in (GameState.GAME_OVER, GameState.PAUSED):
+                    if game.state in (GameState.GAME_OVER, GameState.PAUSED, GameState.HELP):
                         game.state = GameState.MENU
                         sound.play_pause()
 

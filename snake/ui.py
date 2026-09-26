@@ -10,7 +10,7 @@ from OpenGL.GL import (
     GL_QUADS, GL_LINES, GL_LINE_LOOP, GL_PROJECTION, GL_MODELVIEW
 )
 from OpenGL.GLU import gluOrtho2D
-from .palette import BLACK, NEON_GREEN, AMBER, CYAN, RED, DIM_GREEN, SCANLINE_ALPHA
+from .palette import BLACK, NEON_GREEN, AMBER, CYAN, BODY_GREEN, RED, DIM_GREEN, SCANLINE_ALPHA
 from .cube_topology import face_to_string
 from .game_state import GameState, GameManager
 
@@ -255,14 +255,9 @@ class RetroArcadeUI:
         glDisable(GL_BLEND)
 
     def render_urgency_overlay(self, food_timer: float, width: int, height: int, anim_time: float) -> None:
-        """
-        Renders a pulsing red screen vignette/overlay when time to reach the apple is running out (<= 4.0s).
-        Pulse speed and alpha escalate as time reaches 0.
-        """
         if food_timer > 4.0 or food_timer <= 0.0:
             return
 
-        # Escalate pulse frequency from 8 rad/s to 24 rad/s
         urgency = 1.0 - (food_timer / 4.0)
         freq = 8.0 + urgency * 16.0
         pulse = 0.5 + 0.5 * math.sin(anim_time * freq)
@@ -277,7 +272,6 @@ class RetroArcadeUI:
         w = float(width)
         h = float(height)
 
-        # Draw red vignette frame around borders + semi-transparent wash
         glBegin(GL_QUADS)
         glVertex2f(0.0, 0.0)
         glVertex2f(w, 0.0)
@@ -285,7 +279,6 @@ class RetroArcadeUI:
         glVertex2f(0.0, h)
         glEnd()
 
-        # Extra thick pulsing border frame for claustrophobic urgency
         border_size = 24.0 + 20.0 * urgency
         glColor4f(RED[0], RED[1], RED[2], min(1.0, alpha * 2.2))
         glBegin(GL_QUADS)
@@ -302,25 +295,63 @@ class RetroArcadeUI:
         glDisable(GL_BLEND)
 
     def render_menu(self, game: GameManager, width: int, height: int) -> None:
+        # Title: Neon Green
         draw_text("SNAKE ON A CUBE", 0, height * 0.22, 5.0,
                   *NEON_GREEN, centered=True, window_width=width)
 
-        draw_text(f"HIGH SCORE  {game.high_score:05d}", 0, height * 0.38, 3.0,
+        # High score line: Amber
+        draw_text(f"HIGH SCORE  {game.high_score:05d}", 0, height * 0.40, 3.0,
                   *AMBER, centered=True, window_width=width)
 
-        # Feature explanation banner
-        draw_text("WARNING: EAT APPLES BEFORE COUNTDOWN ENDS", 0, height * 0.48, 2.0,
-                  *RED, centered=True, window_width=width)
-        draw_text("OR SNAKE HALVES IN SIZE (-50%)!", 0, height * 0.53, 2.0,
-                  *AMBER, centered=True, window_width=width)
-
+        # Blinking start prompt
         blink_on = (int(self.blink_timer * 2.0) % 2) == 0
         if blink_on:
-            draw_text("PRESS SPACE TO START", 0, height * 0.66, 3.2,
+            draw_text("PRESS SPACE TO START", 0, height * 0.60, 3.2,
                       *AMBER, centered=True, window_width=width)
 
-        draw_text("[ARROW KEYS / WASD] MOVE   [F11] FULLSCREEN", 0, height * 0.84, 2.0,
+        # Clean arcade footer
+        draw_text("[H] HOW TO PLAY   [F11] FULLSCREEN", 0, height * 0.82, 2.2,
                   *AMBER, centered=True, window_width=width)
+
+    def render_help(self, game: GameManager, width: int, height: int) -> None:
+        """
+        Classic retro arcade cabinet 'HOW TO PLAY' / instructions screen.
+        """
+        # Header: Neon Green
+        draw_text("HOW TO PLAY", 0, height * 0.12, 4.5,
+                  *NEON_GREEN, centered=True, window_width=width)
+
+        # Section 1: Objective
+        draw_text("-- MISSION --", 0, height * 0.24, 2.2,
+                  *CYAN, centered=True, window_width=width)
+        draw_text("CRAWL ACROSS ALL 6 FACES OF THE 3D CUBE", 0, height * 0.29, 2.0,
+                  *AMBER, centered=True, window_width=width)
+        draw_text("EAT APPLES TO GROW YOUR BODY AND GAIN +10 PTS", 0, height * 0.34, 2.0,
+                  *AMBER, centered=True, window_width=width)
+
+        # Section 2: Countdown & Hazard
+        draw_text("-- COUNTDOWN & HAZARDS --", 0, height * 0.42, 2.2,
+                  *RED, centered=True, window_width=width)
+        draw_text("EACH APPLE HAS A 12-SECOND URGENCY TIMER", 0, height * 0.47, 2.0,
+                  *AMBER, centered=True, window_width=width)
+        draw_text("TIME OUT: SNAKE PENALTY HALVES IN SIZE (-50%)!", 0, height * 0.52, 2.0,
+                  *RED, centered=True, window_width=width)
+        draw_text("CRASHING INTO YOUR OWN BODY TRIGGERS GAME OVER", 0, height * 0.57, 2.0,
+                  *AMBER, centered=True, window_width=width)
+
+        # Section 3: Controls
+        draw_text("-- CONTROLS --", 0, height * 0.65, 2.2,
+                  *CYAN, centered=True, window_width=width)
+        draw_text("[WASD / ARROWS] STEER    [P] PAUSE    [F11] FULLSCREEN", 0, height * 0.70, 1.9,
+                  *AMBER, centered=True, window_width=width)
+        draw_text("[1-6] INSPECT FACES    [R] RESTART    [ESC] EXIT", 0, height * 0.74, 1.9,
+                  *AMBER, centered=True, window_width=width)
+
+        # Return prompt (blinking)
+        blink = (int(self.blink_timer * 2.0) % 2) == 0
+        if blink:
+            draw_text("PRESS SPACE OR H TO RETURN", 0, height * 0.86, 2.5,
+                      *NEON_GREEN, centered=True, window_width=width)
 
     def render_playing_hud(self, game: GameManager, width: int, height: int) -> None:
         # Score HUD
@@ -333,7 +364,6 @@ class RetroArcadeUI:
         t = max(0.0, game.food_timer)
         timer_str = f"APPLE {t:04.1f}S"
         if t <= 4.0:
-            # Urgent red text, rapid flash when <= 2s
             flash_on = (int(self.blink_timer * 6.0) % 2) == 0 if t <= 2.0 else True
             if flash_on:
                 draw_text(timer_str, 24, 48, 2.4, *RED)
@@ -360,7 +390,6 @@ class RetroArcadeUI:
 
         # Controls reminder at bottom
         draw_text("[P] PAUSE   [F11] FULLSCREEN", 24, height - 28, 1.8, *AMBER)
-
 
     def render_paused(self, width: int, height: int) -> None:
         glEnable(GL_BLEND)
@@ -411,6 +440,8 @@ class RetroArcadeUI:
         state = game.state
         if state == GameState.MENU:
             self.render_menu(game, window_width, window_height)
+        elif state == GameState.HELP:
+            self.render_help(game, window_width, window_height)
         elif state == GameState.PLAYING:
             self.render_playing_hud(game, window_width, window_height)
         elif state == GameState.PAUSED:

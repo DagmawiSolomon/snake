@@ -14,6 +14,8 @@ class GameState(Enum):
     PLAYING = auto()
     PAUSED = auto()
     GAME_OVER = auto()
+    HELP = auto()
+
 
 class Snake:
     def __init__(self):
